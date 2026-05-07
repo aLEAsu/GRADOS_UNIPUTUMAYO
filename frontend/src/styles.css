@@ -193,7 +193,7 @@ a:hover {
 }
 .p-inputtext:focus {
   border-color: var(--color-azul);
-  box-shadow: 0 0 8px rgba(9, 97, 143, 0.4);
+  box-shadow: 0 0 0 3px rgba(9, 97, 143, 0.3); /* antes: 0 0 8px */
   outline: none;
 }
 
@@ -223,7 +223,7 @@ a:hover {
   transition: background 0.3s ease;
 }
 .p-menu-item:hover > a {
-  background-color: var(--color-verde-claro);
+  background: linear-gradient(135deg, var(--color-azul), var(--color-verde));
   color: white;
 }
 .p-menu-item.p-highlight > a {
@@ -399,12 +399,14 @@ a:hover {
 
   .p-inputtext {
     background-color: #374151;
-    border-color: #4b5563;
+    border-color: var(--color-border-light);
     color: var(--color-text);
+    transition: all 0.3s ease; /* unificado */
   }
-
   .p-inputtext:focus {
     border-color: var(--color-azul);
+    box-shadow: 0 0 0 3px rgba(9, 97, 143, 0.3); /* sombra consistente */
+    outline: none;
   }
 
   .p-card {
@@ -415,11 +417,61 @@ a:hover {
   .p-button-primary {
     background: linear-gradient(135deg, var(--color-azul), var(--color-verde));
   }
+
+  /* Menús */
+  .p-menu {
+    background-color: var(--color-bg);
+    border-color: var(--color-border);
+  }
+  .p-menu-item > a {
+    color: var(--color-text);
+  }
+  .p-menu-item:hover > a {
+    background: linear-gradient(135deg, var(--color-azul), var(--color-verde));
+    color: white;
+  }
+  .p-menu-item.p-highlight > a {
+    background-color: rgba(9, 97, 143, 0.1);
+    color: var(--color-azul);
+  }
+
+  /* Tablas */
+  .p-datatable {
+    background-color: var(--color-bg);
+    border-color: var(--color-border);
+  }
+  .p-datatable .p-datatable-header {
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .p-datatable .p-datatable-tbody > tr:hover {
+    background-color: rgba(124, 181, 50, 0.15);
+  }
+
+  /* Footer y links */
+  .brand-footer p {
+    color: var(--color-text-secondary);
+  }
+  .register-link,
+  .forgot-link {
+    color: var(--color-text-secondary);
+  }
+  .forgot-link:hover,
+  .register-link a:hover {
+    color: var(--color-verde);
+  }
 }
 
 /* Responsive refinado */
 @media (max-width: 430px) {
-  h1 { font-size: 1.75rem; }
-  h2 { font-size: 1.5rem; }
-  .p-card-body { padding: 1rem; }
+  h1 {
+    font-size: 1.75rem;
+  }
+  h2 {
+    font-size: 1.5rem;
+  }
+  .p-card-body {
+    padding: 1rem;
+  }
 }

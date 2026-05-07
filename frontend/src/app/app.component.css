@@ -1,1 +1,29 @@
 /* App Component Styles */
+:host {
+  display: block;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Contenedor principal */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Área de contenido */
+.app-content {
+  flex: 1;
+  padding: 1rem;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  :host {
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text);
+  }
+}
