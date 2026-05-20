@@ -6,7 +6,6 @@ import {
 } from '../degree-process/domain/errors';
 import {
   DocumentStatus,
-  DocumentStateMachine,
 } from '../degree-process/domain/document-state-machine';
 import { CreateApprovalDto } from './dto/create-approval.dto';
 import { CreateObservationDto } from './dto/create-observation.dto';
@@ -58,6 +57,8 @@ export class ReviewsService {
       throw new InsufficientPermissionsError('ADVISOR', ['ASSIGNED_ADVISOR']);
     }
 
+    this.validateObservationForNonApproval(dto);
+
     // Use transaction to ensure atomicity
     const approval = await this.prisma.$transaction(async (tx) => {
       // Create the approval
@@ -85,14 +86,21 @@ export class ReviewsService {
       });
 
       // If decision is REVISION_REQUESTED, create observation and transition to EN_CORRECCION
-      if (dto.decision === ApprovalDecision.REVISION_REQUESTED) {
+      if (
+        dto.decision === ApprovalDecision.REVISION_REQUESTED ||
+        dto.decision === ApprovalDecision.REJECTED
+      ) {
         // Create observation
         await tx.observation.create({
           data: {
             requirementInstanceId,
             documentVersionId: dto.documentVersionId,
             authorId: advisorUserId,
-            content: dto.observations || 'Revision requested by advisor',
+            content:
+              dto.observations ||
+              (dto.decision === ApprovalDecision.REJECTED
+                ? 'Document rejected by advisor'
+                : 'Revision requested by advisor'),
           },
         });
 
@@ -122,10 +130,19 @@ export class ReviewsService {
     secretaryUserId: string,
     dto: CreateApprovalDto,
   ) {
+    this.validateObservationForNonApproval(dto);
+
     // Validate requirement exists
     const requirement = await this.prisma.requirementInstance.findUnique({
       where: { id: requirementInstanceId },
       include: {
+        degreeProcess: {
+          include: {
+            requirementInstances: {
+              select: { id: true, status: true },
+            },
+          },
+        },
         documentVersions: {
           where: { id: dto.documentVersionId },
         },
@@ -148,9 +165,11 @@ export class ReviewsService {
     }
 
     // CRITICAL RULE: Check that an ACADEMIC approval with decision=APPROVED exists
+    // for the SAME document version being approved (not an old version)
     const academicApproval = await this.prisma.approval.findFirst({
       where: {
         requirementInstanceId,
+        documentVersionId: dto.documentVersionId,
         type: ApprovalType.ACADEMIC,
         decision: ApprovalDecision.APPROVED,
       },
@@ -158,7 +177,7 @@ export class ReviewsService {
 
     if (!academicApproval) {
       throw new BusinessRuleViolationError(
-        'La secretaría no puede aprobar sin aprobación académica previa del asesor',
+        'La secretaría no puede aprobar sin aprobación académica previa del asesor para esta versión del documento',
       );
     }
 
@@ -196,14 +215,38 @@ export class ReviewsService {
             status: DocumentStatus.APROBADO,
           },
         });
-      } else if (dto.decision === ApprovalDecision.REVISION_REQUESTED) {
+
+        const allRequirementsApproved = requirement.degreeProcess.requirementInstances.every(
+          (r) =>
+            r.id === requirementInstanceId ||
+            r.status === DocumentStatus.APROBADO ||
+            r.status === DocumentStatus.FINALIZADO,
+        );
+
+        if (
+          allRequirementsApproved &&
+          requirement.degreeProcess.status === 'IN_REVIEW'
+        ) {
+          await tx.degreeProcess.update({
+            where: { id: requirement.degreeProcessId },
+            data: { status: 'APPROVED' },
+          });
+        }
+      } else if (
+        dto.decision === ApprovalDecision.REVISION_REQUESTED ||
+        dto.decision === ApprovalDecision.REJECTED
+      ) {
         // If decision is REVISION_REQUESTED, create observation and transition to EN_CORRECCION
         await tx.observation.create({
           data: {
             requirementInstanceId,
             documentVersionId: dto.documentVersionId,
             authorId: secretaryUserId,
-            content: dto.observations || 'Revision requested by secretary',
+            content:
+              dto.observations ||
+              (dto.decision === ApprovalDecision.REJECTED
+                ? 'Document rejected by secretary'
+                : 'Revision requested by secretary'),
           },
         });
 
@@ -229,6 +272,15 @@ export class ReviewsService {
   async sendToReview(requirementInstanceId: string) {
     const requirement = await this.prisma.requirementInstance.findUnique({
       where: { id: requirementInstanceId },
+      include: {
+        degreeProcess: {
+          include: {
+            requirementInstances: {
+              select: { id: true, status: true },
+            },
+          },
+        },
+      },
     });
 
     if (!requirement) {
@@ -241,11 +293,42 @@ export class ReviewsService {
       );
     }
 
-    return this.prisma.requirementInstance.update({
-      where: { id: requirementInstanceId },
-      data: {
-        status: DocumentStatus.EN_REVISION,
-      },
+    if (
+      requirement.degreeProcess.status !== 'ACTIVE' &&
+      requirement.degreeProcess.status !== 'IN_REVIEW'
+    ) {
+      throw new BusinessRuleViolationError(
+        `Los documentos solo pueden enviarse a revisión cuando el proceso de grado está activo (ACTIVE o IN_REVIEW). Estado actual del proceso: ${requirement.degreeProcess.status}. El estudiante debe activar el proceso antes de que se puedan enviar documentos a revisión.`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.requirementInstance.update({
+        where: { id: requirementInstanceId },
+        data: {
+          status: DocumentStatus.EN_REVISION,
+        },
+      });
+
+      const allRequirementsInReview = requirement.degreeProcess.requirementInstances.every(
+        (r) =>
+          r.id === requirementInstanceId ||
+          r.status === DocumentStatus.EN_REVISION ||
+          r.status === DocumentStatus.APROBADO ||
+          r.status === DocumentStatus.FINALIZADO,
+      );
+
+      if (
+        allRequirementsInReview &&
+        requirement.degreeProcess.status === 'ACTIVE'
+      ) {
+        await tx.degreeProcess.update({
+          where: { id: requirement.degreeProcessId },
+          data: { status: 'IN_REVIEW' },
+        });
+      }
+
+      return updated;
     });
   }
 
@@ -525,24 +608,38 @@ export class ReviewsService {
   }
 
   /**
-   * Get all requirements EN_REVISION that already have academic approval (ready for admin approval)
+   * Get all requirements EN_REVISION that already have academic approval
+   * for the LATEST document version (ready for admin approval)
    */
   async getPendingAdminReviews() {
-    // Get all requirements in EN_REVISION status
+    // Get all requirements in EN_REVISION status with their latest document version
     const requirements = await this.prisma.requirementInstance.findMany({
       where: {
         status: DocumentStatus.EN_REVISION,
       },
       select: {
         id: true,
+        documentVersions: {
+          orderBy: { uploadedAt: 'desc' },
+          take: 1,
+          select: { id: true },
+        },
       },
     });
+
+    // Build a map of requirementId -> latestDocumentVersionId
+    const reqLatestVersionMap = new Map<string, string>();
+    for (const req of requirements) {
+      if (req.documentVersions.length > 0) {
+        reqLatestVersionMap.set(req.id, req.documentVersions[0].id);
+      }
+    }
 
     const requirementIds = requirements.map((r) => r.id);
 
     // Check which ones have ACADEMIC approval with APPROVED decision
-    const approvalsGrouped = await this.prisma.approval.groupBy({
-      by: ['requirementInstanceId'],
+    // for ANY version (we'll filter by latest version below)
+    const approvals = await this.prisma.approval.findMany({
       where: {
         requirementInstanceId: {
           in: requirementIds,
@@ -550,17 +647,28 @@ export class ReviewsService {
         type: ApprovalType.ACADEMIC,
         decision: ApprovalDecision.APPROVED,
       },
+      select: {
+        requirementInstanceId: true,
+        documentVersionId: true,
+      },
     });
 
-    const readyForAdminIds = approvalsGrouped.map(
-      (a) => a.requirementInstanceId,
-    );
+    // Only include requirements where the academic approval is for the LATEST version
+    const readyForAdminIds = approvals
+      .filter((a) => {
+        const latestVersionId = reqLatestVersionMap.get(a.requirementInstanceId);
+        return latestVersionId && a.documentVersionId === latestVersionId;
+      })
+      .map((a) => a.requirementInstanceId);
+
+    // Deduplicate
+    const uniqueReadyIds = [...new Set(readyForAdminIds)];
 
     // Get full details for ready requirements
     return this.prisma.requirementInstance.findMany({
       where: {
         id: {
-          in: readyForAdminIds,
+          in: uniqueReadyIds,
         },
       },
       include: {
@@ -646,5 +754,16 @@ export class ReviewsService {
       },
       orderBy: { updatedAt: 'desc' },
     });
+  }
+
+  private validateObservationForNonApproval(dto: CreateApprovalDto): void {
+    if (
+      dto.decision !== ApprovalDecision.APPROVED &&
+      !dto.observations?.trim()
+    ) {
+      throw new BadRequestException(
+        'Observations are required when requesting corrections or rejecting a document',
+      );
+    }
   }
 }

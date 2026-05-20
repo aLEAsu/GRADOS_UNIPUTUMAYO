@@ -51,7 +51,7 @@ export class NotificationService {
     );
   }
 
-  startPolling(intervalMs: number = 30000): Subscription {
+  startPolling(intervalMs = 30000): Subscription {
     return interval(intervalMs).pipe(
       switchMap(() => this.loadNotifications())
     ).subscribe({ error: () => {} });

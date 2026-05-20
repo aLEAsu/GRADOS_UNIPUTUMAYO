@@ -127,9 +127,10 @@ export class DocumentsService {
       if (currentStatus === DocumentStatus.POR_CARGAR) {
         newStatus = DocumentStatus.PENDIENTE;
       }
-      // EN_CORRECCION -> PENDIENTE (when student re-uploads after corrections requested)
+      // EN_CORRECCION -> EN_REVISION (when student re-uploads after corrections requested)
+      // Goes directly to EN_REVISION so the advisor sees it immediately without secretary intervention
       else if (currentStatus === DocumentStatus.EN_CORRECCION) {
-        newStatus = DocumentStatus.PENDIENTE;
+        newStatus = DocumentStatus.EN_REVISION;
       }
 
       // Validate and perform state transition

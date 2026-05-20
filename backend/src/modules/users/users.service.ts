@@ -256,7 +256,7 @@ export class UsersService {
    * Get available advisors (with capacity)
    */
   async getAvailableAdvisors() {
-    return this.prisma.advisorProfile.findMany({
+    const advisors = await this.prisma.advisorProfile.findMany({
       where: {
         isAvailable: true,
       },
@@ -273,5 +273,10 @@ export class UsersService {
       },
       orderBy: { currentActiveProcesses: 'asc' },
     });
+
+    return advisors.filter(
+      (advisor) =>
+        advisor.currentActiveProcesses < advisor.maxActiveProcesses,
+    );
   }
 }

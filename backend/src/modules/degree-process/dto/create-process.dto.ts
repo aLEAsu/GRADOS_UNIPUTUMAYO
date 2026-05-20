@@ -1,26 +1,29 @@
 import { IsUUID, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
  * DTO for creating a new degree process
  */
 export class CreateProcessDto {
-  /**
-   * ID of the modality to inscribe to
-   * (THESIS, INTERNSHIP, RESEARCH_LINE, DIPLOMA)
-   */
+  @ApiProperty({
+    description: 'ID de la modalidad de grado a inscribir',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
   @IsUUID()
   modalityId: string;
 
-  /**
-   * Optional title for the process/project
-   */
+  @ApiPropertyOptional({
+    description: 'Título del proyecto o trabajo de grado',
+    example: 'Sistema de gestión académica basado en microservicios',
+  })
   @IsOptional()
   @IsString()
   title?: string;
 
-  /**
-   * Optional description for the process/project
-   */
+  @ApiPropertyOptional({
+    description: 'Descripción del proyecto o trabajo de grado',
+    example: 'Desarrollo de un sistema distribuido para la gestión de procesos académicos',
+  })
   @IsOptional()
   @IsString()
   description?: string;

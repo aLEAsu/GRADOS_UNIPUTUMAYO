@@ -38,7 +38,7 @@ export class AdminReviewsComponent implements OnInit {
 
     this.reviewService.getPendingAdministrativeReviews().subscribe({
       next: (data) => {
-        this.reviews.set(data);
+        this.reviews.set(data.map(item => this.mapReviewItem(item)));
         this.loading.set(false);
       },
       error: (err) => {
@@ -97,11 +97,16 @@ export class AdminReviewsComponent implements OnInit {
   approveAdministratively(item: any): void {
     if (this.processingId) return;
     const reqId = item.requirementInstanceId || item.id;
+    if (!item.documentVersionId) {
+      this.validationErrors[item.id] = 'No hay una version de documento disponible para revisar.';
+      return;
+    }
     this.processingId = reqId;
 
     this.reviewService.createAdministrativeApproval(reqId, {
       decision: ApprovalDecision.APPROVED,
-      observations: this.observationTexts[item.id] || undefined
+      observations: this.observationTexts[item.id] || undefined,
+      documentVersionId: item.documentVersionId
     }).subscribe({
       next: () => {
         this.processingId = null;
@@ -123,11 +128,16 @@ export class AdminReviewsComponent implements OnInit {
     }
     this.validationErrors[item.id] = '';
     const reqId = item.requirementInstanceId || item.id;
+    if (!item.documentVersionId) {
+      this.validationErrors[item.id] = 'No hay una version de documento disponible para revisar.';
+      return;
+    }
     this.processingId = reqId;
 
     this.reviewService.createAdministrativeApproval(reqId, {
       decision: ApprovalDecision.REJECTED,
-      observations: comment
+      observations: comment,
+      documentVersionId: item.documentVersionId
     }).subscribe({
       next: () => {
         this.processingId = null;
@@ -155,5 +165,21 @@ export class AdminReviewsComponent implements OnInit {
       },
       error: (err) => console.error('Error al agregar observación:', err)
     });
+  }
+
+  private mapReviewItem(item: any): any {
+    const latestDocument = item.documentVersions?.[0];
+    const student = item.degreeProcess?.student;
+    const documentType = item.modalityRequirement?.documentType;
+
+    return {
+      ...item,
+      requirementInstanceId: item.id,
+      documentVersionId: latestDocument?.id,
+      documentName: documentType?.name || latestDocument?.originalFileName || 'Documento',
+      studentName: student ? `${student.firstName} ${student.lastName}` : '',
+      processTitle: item.degreeProcess?.title || item.degreeProcess?.modality?.name || 'Proceso de grado',
+      uploadDate: latestDocument?.uploadedAt || item.updatedAt || item.createdAt
+    };
   }
 }

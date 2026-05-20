@@ -115,14 +115,16 @@ export interface DocumentVersion {
 
 export interface Approval {
   id: string;
-  processId: string;
-  requirementInstanceId?: string;
-  approverId: string;
+  requirementInstanceId: string;
+  documentVersionId: string;
+  approverUserId: string;
   type: ApprovalType;
   decision: ApprovalDecision;
-  comments?: string;
-  createdAt: string;
-  approver?: import('./user.model').User;
+  observations?: string;
+  approvedAt: string;
+  approverUser?: import('./user.model').User;
+  documentVersion?: DocumentVersion;
+  requirementInstance?: { id: string; status: DocumentStatus };
 }
 
 export interface Observation {

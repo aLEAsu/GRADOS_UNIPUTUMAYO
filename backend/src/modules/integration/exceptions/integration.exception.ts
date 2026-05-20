@@ -1,11 +1,13 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 
 export class IntegrationException extends BadRequestException {
+  private static readonly logger = new Logger('IntegrationException');
+
   constructor(message: string, cause?: Error) {
     super(message);
     this.name = 'IntegrationException';
     if (cause) {
-      console.error('Integration Error:', cause);
+      IntegrationException.logger.error(`Integration Error: ${cause.message}`, cause.stack);
     }
   }
 }

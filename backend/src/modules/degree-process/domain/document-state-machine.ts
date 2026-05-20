@@ -78,6 +78,15 @@ export class DocumentStateMachine {
       conditions: ['Student has uploaded a corrected version'],
     },
     {
+      from: DocumentStatus.EN_CORRECCION,
+      to: DocumentStatus.EN_REVISION,
+      allowedRoles: ['STUDENT'],
+      conditions: [
+        'Student has uploaded a corrected version',
+        'Auto-transition: correction re-uploads go directly to review',
+      ],
+    },
+    {
       from: DocumentStatus.APROBADO,
       to: DocumentStatus.FINALIZADO,
       allowedRoles: ['SECRETARY', 'ADMIN', 'SUPERADMIN'],

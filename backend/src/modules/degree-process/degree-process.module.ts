@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { DegreeProcessService } from './degree-process.service';
 import { DegreeProcessController } from './degree-process.controller';
 import { SharedModule } from '../../shared/shared.module';
+import { IntegrationModule } from '../integration/integration.module';
 
 /**
  * Degree Process Module
@@ -18,6 +19,7 @@ import { SharedModule } from '../../shared/shared.module';
   imports: [
     ConfigModule,
     SharedModule, // Provides PrismaService, guards, decorators, etc.
+    IntegrationModule,
   ],
   providers: [DegreeProcessService],
   controllers: [DegreeProcessController],

@@ -2,22 +2,41 @@ import {
   Controller,
   Post,
   Get,
+  Put,
+  Delete,
   Body,
   Param,
+  Query,
+  Req,
   UseGuards,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  Res,
 } from '@nestjs/common';
+import { Request } from 'express';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
   ApiBody,
   ApiParam,
+  ApiConsumes,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { SignaturesService } from './signatures.service';
-import { SignDocumentDto } from './dto/sign-document.dto';
+import {
+  SignDocumentDto,
+  SignProcessDto,
+  CreateSignatureImageDto,
+  UpdateSignatureImageDto,
+  CreateSignatureConfigDto,
+  UpdateSignatureConfigDto,
+} from './dto/sign-document.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles, UserRole } from '../../shared/decorators/roles.decorator';
@@ -30,57 +49,208 @@ import { CurrentUser, JwtPayload } from '../../shared/decorators/current-user.de
 export class SignaturesController {
   constructor(private signaturesService: SignaturesService) {}
 
+  // =============================================
+  // SIGNATURE IMAGES (Admin manages)
+  // =============================================
+
+  @Post('images')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Subir imagen de firma para un usuario' })
+  @ApiResponse({ status: 201, description: 'Imagen de firma creada' })
+  async createSignatureImage(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: CreateSignatureImageDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.signaturesService.createSignatureImage(dto, file, user.sub);
+  }
+
+  @Put('images/:id')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Actualizar imagen de firma' })
+  async updateSignatureImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: UpdateSignatureImageDto,
+  ) {
+    return this.signaturesService.updateSignatureImage(id, dto, file);
+  }
+
+  @Get('images')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Listar todas las imágenes de firma' })
+  async getAllSignatureImages() {
+    return this.signaturesService.getAllSignatureImages();
+  }
+
+  @Get('images/:id')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Obtener imagen de firma por ID' })
+  async getSignatureImageById(@Param('id') id: string) {
+    return this.signaturesService.getSignatureImageById(id);
+  }
+
+  @Get('images/:id/file')
+  @ApiOperation({ summary: 'Descargar archivo de imagen de firma' })
+  async downloadSignatureImageFile(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const result = await this.signaturesService.getSignatureImageFile(id);
+    res.set({
+      'Content-Type': result.mimeType,
+      'Content-Disposition': `inline; filename="${result.fileName}"`,
+    });
+    res.send(result.buffer);
+  }
+
+  @Delete('images/:id')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Eliminar imagen de firma' })
+  async deleteSignatureImage(@Param('id') id: string) {
+    return this.signaturesService.deleteSignatureImage(id);
+  }
+
+  // =============================================
+  // SIGNATURE CONFIGS
+  // =============================================
+
+  @Post('configs')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Crear configuración de firma para un tipo de documento' })
+  @ApiResponse({ status: 201, description: 'Configuración creada' })
+  async createSignatureConfig(@Body() dto: CreateSignatureConfigDto) {
+    return this.signaturesService.createSignatureConfig(dto);
+  }
+
+  @Put('configs/:id')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Actualizar configuración de firma' })
+  async updateSignatureConfig(
+    @Param('id') id: string,
+    @Body() dto: UpdateSignatureConfigDto,
+  ) {
+    return this.signaturesService.updateSignatureConfig(id, dto);
+  }
+
+  @Get('configs')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Listar todas las configuraciones de firma' })
+  async getAllSignatureConfigs() {
+    return this.signaturesService.getAllSignatureConfigs();
+  }
+
+  @Get('configs/document-type/:documentTypeId')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Obtener configuraciones de firma por tipo de documento' })
+  async getSignatureConfigsByDocumentType(
+    @Param('documentTypeId') documentTypeId: string,
+  ) {
+    return this.signaturesService.getSignatureConfigsByDocumentType(documentTypeId);
+  }
+
+  @Delete('configs/:id')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Eliminar configuración de firma' })
+  async deleteSignatureConfig(@Param('id') id: string) {
+    return this.signaturesService.deleteSignatureConfig(id);
+  }
+
+  // =============================================
+  // PROCESS SIGNING (BULK)
+  // =============================================
+
+  @Get('processes/ready')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Listar procesos listos para firmar (estado APPROVED)' })
+  async getProcessesReadyForSigning() {
+    return this.signaturesService.getProcessesReadyForSigning();
+  }
+
+  @Post('processes/sign')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Firmar todos los documentos de un proceso',
+    description:
+      'Aplica firmas visuales a todos los PDFs del proceso. Requiere que TODOS los documentos tengan configuración de firma.',
+  })
+  async signProcess(
+    @Body() dto: SignProcessDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return this.signaturesService.signProcess(dto.processId, user.sub, req.ip);
+  }
+
+  @Post('processes/:processId/requirements/:requirementInstanceId/sign')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Firmar un documento individual de un proceso',
+    description: 'Firma un solo requisito dentro de un proceso APPROVED.',
+  })
+  @ApiParam({ name: 'processId', description: 'ID del proceso' })
+  @ApiParam({ name: 'requirementInstanceId', description: 'ID del requisito a firmar' })
+  async signSingleRequirement(
+    @Param('processId') processId: string,
+    @Param('requirementInstanceId') requirementInstanceId: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return this.signaturesService.signSingleRequirement(processId, requirementInstanceId, user.sub, req.ip);
+  }
+
+  @Post('processes/sign-all')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Firmar TODOS los procesos listos (operación masiva)',
+    description: 'Itera todos los procesos en estado APPROVED y firma sus documentos.',
+  })
+  async signAllReadyProcesses(@CurrentUser() user: JwtPayload, @Req() req: Request) {
+    return this.signaturesService.signAllReadyProcesses(user.sub, req.ip);
+  }
+
+  @Get('processes/:processId/validate')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Validar configuraciones de firma de un proceso' })
+  @ApiParam({ name: 'processId', description: 'ID del proceso a validar' })
+  async validateProcessConfigs(@Param('processId') processId: string) {
+    return this.signaturesService.validateProcessConfigs(processId);
+  }
+
+  // =============================================
+  // SIGNED DOCUMENT DOWNLOAD
+  // =============================================
+
+  @Get('download/:requirementInstanceId')
+  @ApiOperation({ summary: 'Descargar documento firmado por requirementInstanceId' })
+  async downloadSignedDocument(
+    @Param('requirementInstanceId') requirementInstanceId: string,
+    @Res() res: Response,
+  ) {
+    const result = await this.signaturesService.downloadSignedDocument(requirementInstanceId);
+    res.set({
+      'Content-Type': result.mimeType,
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(result.fileName)}"`,
+      'Content-Length': result.buffer.length.toString(),
+    });
+    res.send(result.buffer);
+  }
+
+  // =============================================
+  // LEGACY / EXISTING ENDPOINTS
+  // =============================================
+
   @Post('sign')
   @Roles(UserRole.SECRETARY, UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: 'Sign a document with digital signature',
-    description:
-      'Sign a document after both academic and administrative approvals. Only SECRETARY and ADMIN users can perform this action.',
-  })
-  @ApiBody({ type: SignDocumentDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Document signed successfully',
-    schema: {
-      example: {
-        id: 'uuid',
-        requirementInstanceId: 'uuid',
-        documentVersionId: 'uuid',
-        signedById: 'uuid',
-        signatureHash: 'base64-encoded-signature',
-        certificateSerial: '01',
-        timestamp: '2026-03-18T10:30:00Z',
-        metadata: {
-          algorithm: 'RSA-SHA256',
-          keyId: 'institutional-key',
-          documentHash: 'hex-encoded-sha256',
-        },
-        signedBy: {
-          id: 'uuid',
-          email: 'secretary@example.com',
-          firstName: 'Juan',
-          lastName: 'Pérez',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid request or document not ready for signing',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - must be authenticated',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - insufficient permissions',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Document or requirement not found',
-  })
+  @ApiOperation({ summary: 'Firmar un documento individual (legacy)' })
   async signDocument(
     @Body() dto: SignDocumentDto,
     @CurrentUser() user: JwtPayload,
@@ -94,175 +264,31 @@ export class SignaturesController {
 
   @Get('verify/:signatureId')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Verify a digital signature',
-    description: 'Verify the authenticity and integrity of a digital signature',
-  })
-  @ApiParam({
-    name: 'signatureId',
-    description: 'The ID of the signature to verify',
-    example: '550e8400-e29b-41d4-a716-446655440000',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Signature verification result',
-    schema: {
-      example: {
-        isValid: true,
-        details: {
-          signedBy: 'Juan Pérez',
-          timestamp: '2026-03-18T10:30:00Z',
-          documentHash: 'a1b2c3d4e5f6...',
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Failed to verify signature',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Signature not found',
-  })
+  @ApiOperation({ summary: 'Verificar una firma digital' })
   async verifySignature(@Param('signatureId') signatureId: string) {
     return await this.signaturesService.verifySignature(signatureId);
   }
 
   @Get('process/:processId')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Get all signatures for a degree process',
-    description: 'Retrieve all digital signatures associated with a degree process',
-  })
-  @ApiParam({
-    name: 'processId',
-    description: 'The ID of the degree process',
-    example: '550e8400-e29b-41d4-a716-446655440000',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'List of signatures for the process',
-    schema: {
-      example: [
-        {
-          id: 'uuid',
-          requirementInstanceId: 'uuid',
-          documentVersionId: 'uuid',
-          timestamp: '2026-03-18T10:30:00Z',
-          signedBy: {
-            id: 'uuid',
-            email: 'secretary@example.com',
-            firstName: 'Juan',
-            lastName: 'Pérez',
-          },
-          documentVersion: {
-            id: 'uuid',
-            fileName: 'document.pdf',
-            originalFileName: 'myfile.pdf',
-          },
-          requirementInstance: {
-            id: 'uuid',
-            status: 'APROBADO',
-          },
-        },
-      ],
-    },
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - must be authenticated',
-  })
+  @ApiOperation({ summary: 'Obtener todas las firmas de un proceso' })
   async getSignaturesByProcess(@Param('processId') processId: string) {
     return await this.signaturesService.getSignaturesByProcess(processId);
   }
 
   @Get('requirement/:requirementInstanceId')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Get signatures for a specific requirement',
-    description:
-      'Retrieve all digital signatures for a specific requirement instance',
-  })
-  @ApiParam({
-    name: 'requirementInstanceId',
-    description: 'The ID of the requirement instance',
-    example: '550e8400-e29b-41d4-a716-446655440000',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Signature(s) for the requirement',
-    schema: {
-      example: [
-        {
-          id: 'uuid',
-          requirementInstanceId: 'uuid',
-          documentVersionId: 'uuid',
-          timestamp: '2026-03-18T10:30:00Z',
-          signedBy: {
-            id: 'uuid',
-            email: 'secretary@example.com',
-            firstName: 'Juan',
-            lastName: 'Pérez',
-          },
-          documentVersion: {
-            id: 'uuid',
-            fileName: 'document.pdf',
-            originalFileName: 'myfile.pdf',
-            versionNumber: 1,
-          },
-        },
-      ],
-    },
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - must be authenticated',
-  })
+  @ApiOperation({ summary: 'Obtener firmas de un requisito específico' })
   async getSignaturesByDocument(
     @Param('requirementInstanceId') requirementInstanceId: string,
   ) {
-    return await this.signaturesService.getSignaturesByDocument(
-      requirementInstanceId,
-    );
+    return await this.signaturesService.getSignaturesByDocument(requirementInstanceId);
   }
 
   @Post('generate-keys')
   @Roles(UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({
-    summary: 'Generate institutional RSA key pair',
-    description:
-      'Generate a new RSA 2048-bit key pair for digital signatures. SUPERADMIN only. This is a one-time setup operation.',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Key pair generated successfully',
-    schema: {
-      example: {
-        certificateInfo: {
-          serial: '01',
-          subject: 'CN=Instituto Tecnologico del Putumayo - CIECYT',
-          issuer: 'CN=Instituto Tecnologico del Putumayo - CIECYT',
-          validFrom: '2026-03-18T10:30:00Z',
-          validTo: '2031-03-18T10:30:00Z',
-        },
-        message: 'Key pair generated and saved successfully',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Failed to generate key pair',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - must be authenticated',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - only SUPERADMIN can generate keys',
-  })
+  @ApiOperation({ summary: 'Generar par de llaves RSA institucional (solo SUPERADMIN)' })
   async generateKeyPair() {
     return await this.signaturesService.generateKeyPair();
   }
@@ -270,40 +296,116 @@ export class SignaturesController {
   @Get('certificate')
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Get institutional certificate information',
-    description: 'Retrieve information about the institutional signing certificate',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Certificate information',
-    schema: {
-      example: {
-        serial: '01',
-        subject: 'CN=Instituto Tecnologico del Putumayo - CIECYT, O=Instituto Tecnologico del Putumayo, OU=CIECYT - Centro de Investigaciones, L=Mocoa, ST=Putumayo, C=CO',
-        issuer: 'CN=Instituto Tecnologico del Putumayo - CIECYT, O=Instituto Tecnologico del Putumayo, OU=CIECYT - Centro de Investigaciones, L=Mocoa, ST=Putumayo, C=CO',
-        validFrom: '2026-03-18T10:30:00Z',
-        validTo: '2031-03-18T10:30:00Z',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Failed to retrieve certificate information',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - must be authenticated',
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - insufficient permissions',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Certificate not found - please generate keys first',
-  })
+  @ApiOperation({ summary: 'Obtener información del certificado institucional' })
   async getCertificateInfo() {
     return await this.signaturesService.getCertificateInfo();
+  }
+
+  // =============================================
+  // PAGINATED PROCESSES
+  // =============================================
+
+  @Get('processes/ready/paginated')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Listar procesos listos para firmar con paginación' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  async getProcessesReadyPaginated(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.signaturesService.getProcessesReadyForSigningPaginated({
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 20,
+      search,
+    });
+  }
+
+  // =============================================
+  // AUDIT LOGS
+  // =============================================
+
+  @Get('audit-logs')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Obtener logs de auditoría de firmas' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'userId', required: false, type: String })
+  @ApiQuery({ name: 'action', required: false, type: String })
+  async getAuditLogs(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('userId') userId?: string,
+    @Query('action') action?: string,
+  ) {
+    return this.signaturesService.getSignatureAuditLogs({
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 20,
+      userId,
+      action,
+    });
+  }
+
+  // =============================================
+  // ARCHIVE PROCESSES
+  // =============================================
+
+  @Post('processes/:processId/archive')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Archivar un proceso completado (COMPLETED → ARCHIVED)' })
+  @ApiParam({ name: 'processId', description: 'ID del proceso a archivar' })
+  async archiveProcess(
+    @Param('processId') processId: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return this.signaturesService.archiveProcess(processId, user.sub, req.ip);
+  }
+
+  @Post('processes/archive-bulk')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Archivar masivamente procesos completados hace más de N días' })
+  @ApiBody({ schema: { properties: { daysOld: { type: 'number', example: 30 } } } })
+  async archiveCompletedProcesses(
+    @Body('daysOld') daysOld: number,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return this.signaturesService.archiveCompletedProcesses(
+      daysOld || 30,
+      user.sub,
+      req.ip,
+    );
+  }
+
+  // =============================================
+  // UNSIGN / REVERT SIGNATURE
+  // =============================================
+
+  @Post('processes/:processId/requirements/:requirementInstanceId/unsign')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Revertir firma de un documento (FINALIZADO → APROBADO)',
+    description: 'Elimina las firmas digitales y el PDF firmado, regresando el documento a estado APROBADO.',
+  })
+  @ApiParam({ name: 'processId', description: 'ID del proceso' })
+  @ApiParam({ name: 'requirementInstanceId', description: 'ID del requisito a revertir' })
+  async unsignRequirement(
+    @Param('processId') processId: string,
+    @Param('requirementInstanceId') requirementInstanceId: string,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return this.signaturesService.unsignRequirement(
+      processId,
+      requirementInstanceId,
+      user.sub,
+      req.ip,
+    );
   }
 }

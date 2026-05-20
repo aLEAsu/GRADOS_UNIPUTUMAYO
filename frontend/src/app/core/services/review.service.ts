@@ -18,7 +18,7 @@ export class ReviewService {
   // Academic approval (Advisor)
   createAcademicApproval(
     requirementInstanceId: string,
-    data: { decision: ApprovalDecision; observations?: string }
+    data: { decision: ApprovalDecision; observations?: string; documentVersionId: string }
   ): Observable<Approval> {
     return this.http.post<Approval>(
       `${this.apiUrl}/requirement/${requirementInstanceId}/academic-approval`,
@@ -29,7 +29,7 @@ export class ReviewService {
   // Administrative approval (Secretary)
   createAdministrativeApproval(
     requirementInstanceId: string,
-    data: { decision: ApprovalDecision; observations?: string }
+    data: { decision: ApprovalDecision; observations?: string; documentVersionId: string }
   ): Observable<Approval> {
     return this.http.post<Approval>(
       `${this.apiUrl}/requirement/${requirementInstanceId}/administrative-approval`,

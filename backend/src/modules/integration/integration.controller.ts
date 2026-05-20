@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Param,
+  ParseUUIDPipe,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -56,7 +57,7 @@ export class IntegrationController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'User or student profile not found' })
-  async syncStudentProfile(@Param('userId') userId: string) {
+  async syncStudentProfile(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.integrationService.syncStudentProfile(userId);
   }
 

@@ -141,6 +141,34 @@
                       {{ req.modalityRequirement?.instructions || req.modalityRequirement?.documentType?.description || 'Sin descripción' }}
                     </p>
 
+                    <!-- Approval Status Indicators -->
+                    @if (getRequirementApprovals(req).length > 0) {
+                      <div class="approval-indicators">
+                        @if (hasAcademicApproval(req)) {
+                          <span class="approval-indicator approval-academic-ok">
+                            <i class="pi pi-check-circle"></i> Aprobado por Asesor
+                          </span>
+                        }
+                        @if (hasAdministrativeApproval(req)) {
+                          <span class="approval-indicator approval-admin-ok">
+                            <i class="pi pi-verified"></i> Aprobado por Secretaría
+                          </span>
+                        }
+                        @for (a of getRequirementApprovals(req); track a.id) {
+                          @if (a.decision === 'REVISION_REQUESTED') {
+                            <span class="approval-indicator approval-revision">
+                              <i class="pi pi-exclamation-triangle"></i> Corrección solicitada por {{ a.approverUser?.firstName }} {{ a.approverUser?.lastName }}
+                            </span>
+                          }
+                          @if (a.decision === 'REJECTED') {
+                            <span class="approval-indicator approval-rejected">
+                              <i class="pi pi-times-circle"></i> Rechazado por {{ a.approverUser?.firstName }} {{ a.approverUser?.lastName }}
+                            </span>
+                          }
+                        }
+                      </div>
+                    }
+
                     <!-- Document Versions -->
                     @if (req.documentVersions && req.documentVersions.length > 0) {
                       <div class="document-versions">
@@ -156,12 +184,26 @@
                         }
                       </div>
 
+                      <!-- Download Signed Document (when FINALIZADO) -->
+                      @if (isRequirementSigned(req)) {
+                        <div class="action-row signed-download">
+                          <button class="btn btn-sm btn-success" (click)="downloadSignedDocument(req.id, req.modalityRequirement?.documentType?.name || 'documento')">
+                            <i class="pi pi-verified"></i> Descargar Documento Firmado
+                          </button>
+                        </div>
+                      }
+
                       <!-- Send to Review button (Secretary) -->
                       @if (canSendToReview(req)) {
                         <div class="action-row">
                           <button class="btn btn-sm btn-secondary" (click)="sendToReview(req.id)" [disabled]="actionInProgress()">
                             <i class="pi pi-send"></i> Enviar a Revisión
                           </button>
+                        </div>
+                      } @else if (req.status === DocumentStatus.PENDIENTE && isProcessNotActiveForReview() && (userRole() === UserRole.SECRETARY || userRole() === UserRole.ADMIN || userRole() === UserRole.SUPERADMIN)) {
+                        <div class="alert alert-warning" style="margin-top: 0.5rem; padding: 0.5rem 1rem; font-size: 0.85rem;">
+                          <i class="pi pi-info-circle"></i>
+                          <span>El proceso debe estar activo para enviar documentos a revisión. El estudiante debe activar el proceso primero.</span>
                         </div>
                       }
                     } @else if (req.status === 'POR_CARGAR') {
@@ -175,7 +217,7 @@
                               (change)="onFileSelected($event, req.id)"
                               [disabled]="fileUploadInProgress()"
                               class="file-input"
-                              accept=".pdf,.doc,.docx,.xls,.xlsx"
+                              accept="application/pdf,.pdf"
                             />
                             <label class="upload-label" (click)="fileInput.click()">
                               @if (fileUploadInProgress()) {
@@ -202,7 +244,7 @@
                             (change)="onFileSelected($event, req.id)"
                             [disabled]="fileUploadInProgress()"
                             class="file-input"
-                            accept=".pdf,.doc,.docx,.xls,.xlsx"
+                            accept="application/pdf,.pdf"
                           />
                           <label class="upload-label" (click)="correctionInput.click()">
                             @if (fileUploadInProgress()) {
@@ -243,6 +285,15 @@
                           {{ documentStatusLabels[req.status] }}
                         </span>
                       </div>
+
+                      <!-- Download Signed Document -->
+                      @if (isRequirementSigned(req)) {
+                        <div class="action-row signed-download" style="margin-bottom: 0.75rem;">
+                          <button class="btn btn-sm btn-success" (click)="downloadSignedDocument(req.id, req.modalityRequirement?.documentType?.name || 'documento')">
+                            <i class="pi pi-verified"></i> Descargar Documento Firmado
+                          </button>
+                        </div>
+                      }
 
                       @for (doc of req.documentVersions; track doc.id) {
                         <div class="document-item">
@@ -298,7 +349,7 @@
           <div class="tab-pane">
             <h3 class="section-subtitle">Aprobaciones</h3>
 
-            @if (process()?.approvals && process()!.approvals!.length > 0) {
+            @if (hasAnyApprovals()) {
               <!-- Academic Approvals -->
               @if (getApprovalsByType(ApprovalType.ACADEMIC).length > 0) {
                 <div class="approval-section">
@@ -308,16 +359,16 @@
                       <div class="approval-item">
                         <div class="approval-header">
                           <span class="approval-name">
-                            {{ approval.approver?.firstName }} {{ approval.approver?.lastName }}
+                            {{ approval.approverUser?.firstName }} {{ approval.approverUser?.lastName }}
                           </span>
                           <span [class]="getApprovalDecisionClass(approval.decision)">
                             {{ approvalDecisionLabels[approval.decision] }}
                           </span>
                         </div>
-                        @if (approval.comments) {
-                          <p class="approval-comments">{{ approval.comments }}</p>
+                        @if (approval.observations) {
+                          <p class="approval-comments">{{ approval.observations }}</p>
                         }
-                        <span class="approval-date">{{ formatDate(approval.createdAt) }}</span>
+                        <span class="approval-date">{{ formatDate(approval.approvedAt) }}</span>
                       </div>
                     }
                   </div>
@@ -333,16 +384,16 @@
                       <div class="approval-item">
                         <div class="approval-header">
                           <span class="approval-name">
-                            {{ approval.approver?.firstName }} {{ approval.approver?.lastName }}
+                            {{ approval.approverUser?.firstName }} {{ approval.approverUser?.lastName }}
                           </span>
                           <span [class]="getApprovalDecisionClass(approval.decision)">
                             {{ approvalDecisionLabels[approval.decision] }}
                           </span>
                         </div>
-                        @if (approval.comments) {
-                          <p class="approval-comments">{{ approval.comments }}</p>
+                        @if (approval.observations) {
+                          <p class="approval-comments">{{ approval.observations }}</p>
                         }
-                        <span class="approval-date">{{ formatDate(approval.createdAt) }}</span>
+                        <span class="approval-date">{{ formatDate(approval.approvedAt) }}</span>
                       </div>
                     }
                   </div>

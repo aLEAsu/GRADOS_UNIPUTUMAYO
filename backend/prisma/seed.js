@@ -356,7 +356,7 @@ async function main() {
   // Seed Advisor user
   console.log('Seeding advisor user...');
   const advisorPasswordHash = await bcrypt.hash('Advisor@2024', 10);
-  await prisma.user.upsert({
+  const advisorUser = await prisma.user.upsert({
     where: { email: 'asesor@itp.edu.co' },
     update: {},
     create: {
@@ -368,6 +368,21 @@ async function main() {
       isActive: true,
       emailVerified: true,
       institutionalEmail: 'asesor@itp.edu.co',
+    },
+  });
+
+  await prisma.advisorProfile.upsert({
+    where: { userId: advisorUser.id },
+    update: {
+      isAvailable: true,
+    },
+    create: {
+      userId: advisorUser.id,
+      department: 'Ingenieria',
+      specialization: 'Asesoria de grado',
+      maxActiveProcesses: 5,
+      currentActiveProcesses: 0,
+      isAvailable: true,
     },
   });
 

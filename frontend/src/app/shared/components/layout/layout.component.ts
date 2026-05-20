@@ -88,6 +88,12 @@ export class LayoutComponent implements OnInit, OnDestroy {
         roles: [UserRole.ADMIN, UserRole.SUPERADMIN],
       },
       {
+        label: 'Firmas Digitales',
+        icon: 'pi pi-pencil',
+        routerLink: '/admin/signatures',
+        roles: [UserRole.ADMIN, UserRole.SUPERADMIN],
+      },
+      {
         label: 'Auditoría',
         icon: 'pi pi-history',
         routerLink: '/admin/audit',

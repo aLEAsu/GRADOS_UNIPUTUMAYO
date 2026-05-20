@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +18,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiQuery,
+  ApiParam,
 } from '@nestjs/swagger';
 import { DegreeProcessService } from './degree-process.service';
 import { CreateProcessDto } from './dto/create-process.dto';
@@ -38,31 +40,23 @@ import {
 @ApiTags('Degree Processes')
 @Controller('degree-processes')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
+@ApiBearerAuth('bearer')
 export class DegreeProcessController {
   constructor(private degreeProcessService: DegreeProcessService) {}
 
   /**
    * Create a new degree process
-   * Student inscription starts in DRAFT status
    */
   @Post()
   @Roles(UserRole.STUDENT)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new degree process',
-    description:
-      'Student submits inscription to a degree modality. Process starts in DRAFT status.',
+    description: 'Student submits inscription to a degree modality. Process starts in DRAFT status.',
   })
   @ApiBody({ type: CreateProcessDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Degree process created successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid input or business rule violation',
-  })
+  @ApiResponse({ status: 201, description: 'Degree process created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input or business rule violation' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Student or modality not found' })
   async createProcess(
@@ -73,16 +67,14 @@ export class DegreeProcessController {
   }
 
   /**
-   * Get all degree processes with filtering and pagination
-   * Only accessible to secretaries and admins
+   * Get all degree processes with filtering and pagination (admin/secretary only)
    */
   @Get()
   @Roles(UserRole.SECRETARY, UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get all degree processes',
-    description:
-      'Retrieve all degree processes with filtering and pagination. Secretary/Admin only.',
+    description: 'Retrieve all degree processes with filtering and pagination. Secretary/Admin only.',
   })
   @ApiQuery({ name: 'status', required: false, enum: ['DRAFT', 'ACTIVE', 'IN_REVIEW', 'APPROVED', 'COMPLETED', 'ARCHIVED'] })
   @ApiQuery({ name: 'modalityCode', required: false })
@@ -91,33 +83,22 @@ export class DegreeProcessController {
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({
-    status: 200,
-    description: 'Degree processes retrieved successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 200, description: 'Degree processes retrieved successfully' })
   async getAllProcesses(@Query() filters: ProcessFilterDto) {
     return this.degreeProcessService.getAllProcesses(filters);
   }
 
   /**
-   * Get my processes
-   * Students see their own, advisors see assigned ones
+   * Get my processes (students see their own, advisors see assigned ones)
    */
   @Get('my-processes')
   @Roles(UserRole.STUDENT, UserRole.ADVISOR)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get my processes',
-    description:
-      'Students retrieve their own processes, professors retrieve assigned ones.',
+    description: 'Students retrieve their own processes, advisors retrieve assigned ones.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Processes retrieved successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 200, description: 'Processes retrieved successfully' })
   async getMyProcesses(@CurrentUser() user: JwtPayload) {
     if (user.role === UserRole.STUDENT) {
       return this.degreeProcessService.getProcessesByStudent(user.sub);
@@ -128,7 +109,6 @@ export class DegreeProcessController {
 
   /**
    * Get all available modalities
-   * Accessible to students to select during process creation
    */
   @Get('modalities')
   @Roles(UserRole.STUDENT, UserRole.ADVISOR, UserRole.SECRETARY, UserRole.ADMIN, UserRole.SUPERADMIN)
@@ -138,159 +118,112 @@ export class DegreeProcessController {
     description: 'Retrieve all active degree modalities. Accessible to all authenticated users.',
   })
   @ApiResponse({ status: 200, description: 'Modalities retrieved successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getModalities() {
     return this.degreeProcessService.getModalities();
   }
 
   /**
-   * Get a specific degree process by ID
-   * Permission-based access control
+   * Get a specific degree process by ID (permission-based)
    */
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get degree process by ID',
-    description:
-      'Retrieve a specific degree process. Access controlled by role and process ownership.',
+    description: 'Retrieve a specific degree process. Access controlled by role and process ownership.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Degree process retrieved successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiParam({ name: 'id', description: 'Process UUID', type: String })
+  @ApiResponse({ status: 200, description: 'Degree process retrieved successfully' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Process not found' })
   async getProcessById(
-    @Param('id') processId: string,
+    @Param('id', ParseUUIDPipe) processId: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.degreeProcessService.getProcessById(
-      processId,
-      user.sub,
-      user.role,
-    );
+    return this.degreeProcessService.getProcessById(processId, user.sub, user.role);
   }
 
   /**
-   * Assign an advisor to a degree process
-   * Secretary/Admin only
+   * Get process summary with completion metrics (permission-based)
+   */
+  @Get(':id/summary')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get process summary',
+    description: 'Retrieve summary of degree process with completion percentages. Access controlled by ownership/role.',
+  })
+  @ApiParam({ name: 'id', description: 'Process UUID', type: String })
+  @ApiResponse({ status: 200, description: 'Process summary retrieved successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden — not authorized to view this process' })
+  @ApiResponse({ status: 404, description: 'Process not found' })
+  async getProcessSummary(
+    @Param('id', ParseUUIDPipe) processId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.degreeProcessService.getProcessSummary(processId, user.sub, user.role);
+  }
+
+  /**
+   * Assign an advisor to a degree process (secretary/admin only)
    */
   @Patch(':id/assign-advisor')
   @Roles(UserRole.SECRETARY, UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Assign advisor to process',
-    description:
-      'Secretary/Admin assigns an advisor to a degree process. Validates advisor availability.',
+    description: 'Secretary/Admin assigns an advisor to a degree process.',
   })
+  @ApiParam({ name: 'id', description: 'Process UUID', type: String })
   @ApiBody({ type: AssignAdvisorDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Advisor assigned successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid input or business rule violation',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 200, description: 'Advisor assigned successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input or business rule violation' })
   @ApiResponse({ status: 404, description: 'Process or advisor not found' })
   async assignAdvisor(
-    @Param('id') processId: string,
+    @Param('id', ParseUUIDPipe) processId: string,
     @Body() assignAdvisorDto: AssignAdvisorDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.degreeProcessService.assignAdvisor(
-      processId,
-      assignAdvisorDto,
-      user.sub,
-    );
+    return this.degreeProcessService.assignAdvisor(processId, assignAdvisorDto, user.sub);
   }
 
   /**
-   * Activate a degree process
-   * Transitions DRAFT → ACTIVE (student submission)
+   * Activate a degree process (DRAFT → ACTIVE)
    */
   @Patch(':id/activate')
   @Roles(UserRole.STUDENT)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Activate degree process',
-    description:
-      'Student submits inscription. Transitions process from DRAFT to ACTIVE.',
+    description: 'Student submits inscription. Transitions process from DRAFT to ACTIVE.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Process activated successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid state transition or missing advisor',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Process not found' })
+  @ApiParam({ name: 'id', description: 'Process UUID', type: String })
+  @ApiResponse({ status: 200, description: 'Process activated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid state transition or missing advisor' })
   async activateProcess(
-    @Param('id') processId: string,
+    @Param('id', ParseUUIDPipe) processId: string,
     @CurrentUser() user: JwtPayload,
   ) {
     return this.degreeProcessService.activateProcess(processId, user.sub);
   }
 
   /**
-   * Update process status
-   * Role-dependent state transitions
+   * Update process status (role-dependent state transitions)
    */
   @Patch(':id/status')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Update process status',
-    description:
-      'Update the status of a degree process. State transitions validated by role.',
+    description: 'Update the status of a degree process. State transitions validated by role.',
   })
+  @ApiParam({ name: 'id', description: 'Process UUID', type: String })
   @ApiBody({ type: UpdateStatusDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Status updated successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid state transition',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 200, description: 'Status updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid state transition' })
   @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
-  @ApiResponse({ status: 404, description: 'Process not found' })
   async updateProcessStatus(
-    @Param('id') processId: string,
+    @Param('id', ParseUUIDPipe) processId: string,
     @Body() updateStatusDto: UpdateStatusDto,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.degreeProcessService.updateProcessStatus(
-      processId,
-      updateStatusDto,
-      user.sub,
-      user.role,
-    );
-  }
-
-  /**
-   * Get process summary with completion metrics
-   */
-  @Get(':id/summary')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Get process summary',
-    description:
-      'Retrieve summary of degree process with completion percentages and requirement status counts.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Process summary retrieved successfully',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Process not found' })
-  async getProcessSummary(@Param('id') processId: string) {
-    return this.degreeProcessService.getProcessSummary(processId);
+    return this.degreeProcessService.updateProcessStatus(processId, updateStatusDto, user.sub, user.role);
   }
 }

@@ -35,9 +35,11 @@ export const routes: Routes = [
         loadChildren: () => import('./features/process/process.routes').then(m => m.PROCESS_ROUTES)
       },
 
-      // Reviews routes
+      // Reviews routes (restricted to ADVISOR, SECRETARY, ADMIN, SUPERADMIN)
       {
         path: 'reviews',
+        canActivate: [roleGuard],
+        data: { roles: [UserRole.ADVISOR, UserRole.SECRETARY, UserRole.ADMIN, UserRole.SUPERADMIN] },
         loadChildren: () => import('./features/reviews/reviews.routes').then(m => m.reviewsRoutes)
       },
 

@@ -6,6 +6,7 @@ import { DegreeProcessService } from '../../../core/services/degree-process.serv
 import { DocumentService } from '../../../core/services/document.service';
 import { ReviewService } from '../../../core/services/review.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { SignatureService } from '../../../core/services/signature.service';
 import {
   DegreeProcess,
   ProcessStatus,
@@ -40,7 +41,7 @@ export class ProcessDetailComponent implements OnInit {
   selectedAdvisorId = '';
   showAdvisorModal = signal(false);
 
-  processId: string = '';
+  processId = '';
 
   statusLabels: Record<ProcessStatus, string> = {
     [ProcessStatus.DRAFT]: 'Borrador',
@@ -110,6 +111,7 @@ export class ProcessDetailComponent implements OnInit {
     private documentService: DocumentService,
     private reviewService: ReviewService,
     private authService: AuthService,
+    private signatureService: SignatureService,
     private route: ActivatedRoute
   ) {}
 
@@ -156,7 +158,7 @@ export class ProcessDetailComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error activating process:', err);
-        this.error.set(err.error?.message || 'Error al activar el proceso.');
+        this.error.set(err.error?.error || err.error?.message || 'Error al activar el proceso.');
         this.actionInProgress.set(false);
       }
     });
@@ -189,7 +191,7 @@ export class ProcessDetailComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error assigning advisor:', err);
-        this.error.set(err.error?.message || 'Error al asignar asesor.');
+        this.error.set(err.error?.error || err.error?.message || 'Error al asignar asesor.');
         this.actionInProgress.set(false);
       }
     });
@@ -212,7 +214,7 @@ export class ProcessDetailComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error uploading file:', err);
-        this.error.set(err.error?.message || 'Error al cargar el archivo.');
+        this.error.set(err.error?.error || err.error?.message || 'Error al cargar el archivo.');
         this.fileUploadInProgress.set(false);
       }
     });
@@ -232,6 +234,27 @@ export class ProcessDetailComponent implements OnInit {
     });
   }
 
+  downloadSignedDocument(requirementInstanceId: string, fileName: string): void {
+    this.signatureService.downloadSignedDocument(requirementInstanceId).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName ? `firmado_${fileName}` : 'documento_firmado.pdf';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: (err) => {
+        console.error('Error downloading signed document:', err);
+        this.error.set('Error al descargar el documento firmado.');
+      }
+    });
+  }
+
+  isRequirementSigned(req: RequirementInstance): boolean {
+    return req.status === DocumentStatus.FINALIZADO;
+  }
+
   // === REVIEW ACTIONS (for Secretary) ===
 
   sendToReview(requirementInstanceId: string): void {
@@ -246,7 +269,7 @@ export class ProcessDetailComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error sending to review:', err);
-        this.error.set(err.error?.message || 'Error al enviar a revisión.');
+        this.error.set(err.error?.error || err.error?.message || 'Error al enviar a revisión.');
         this.actionInProgress.set(false);
       }
     });
@@ -278,8 +301,23 @@ export class ProcessDetailComponent implements OnInit {
 
   canSendToReview(req: RequirementInstance): boolean {
     const role = this.userRole();
+    const proc = this.process();
+    if (!proc) return false;
+    // El proceso debe estar ACTIVE o IN_REVIEW para poder enviar documentos a revisión
+    const processAllowsReview = proc.status === ProcessStatus.ACTIVE || proc.status === ProcessStatus.IN_REVIEW;
     return (role === UserRole.SECRETARY || role === UserRole.ADMIN || role === UserRole.SUPERADMIN)
-      && req.status === DocumentStatus.PENDIENTE;
+      && req.status === DocumentStatus.PENDIENTE
+      && processAllowsReview;
+  }
+
+  /**
+   * Verifica si el proceso NO está en un estado que permita enviar a revisión.
+   * Útil para mostrar mensajes informativos a la secretaria.
+   */
+  isProcessNotActiveForReview(): boolean {
+    const proc = this.process();
+    if (!proc) return false;
+    return proc.status !== ProcessStatus.ACTIVE && proc.status !== ProcessStatus.IN_REVIEW;
   }
 
   getStatusBadgeClass(status: ProcessStatus): string {
@@ -318,10 +356,13 @@ export class ProcessDetailComponent implements OnInit {
     return decisionClass[decision] || baseClass;
   }
 
+  /**
+   * Obtiene todas las aprobaciones del proceso agrupadas por tipo.
+   * Las aprobaciones vienen anidadas dentro de requirementInstances, no a nivel de proceso.
+   */
   getApprovalsByType(type: ApprovalType): Approval[] {
     const proc = this.process();
     if (!proc?.requirementInstances) return [];
-    // Approvals are nested inside requirementInstances, not at process level
     const allApprovals: Approval[] = [];
     for (const ri of proc.requirementInstances) {
       if (ri.approvals) {
@@ -329,6 +370,42 @@ export class ProcessDetailComponent implements OnInit {
       }
     }
     return allApprovals.filter(a => a.type === type);
+  }
+
+  /**
+   * Verifica si hay al menos una aprobación en todo el proceso (para mostrar la pestaña).
+   */
+  hasAnyApprovals(): boolean {
+    const proc = this.process();
+    if (!proc?.requirementInstances) return false;
+    return proc.requirementInstances.some(ri => ri.approvals && ri.approvals.length > 0);
+  }
+
+  /**
+   * Verifica si un RequirementInstance tiene aprobación académica (del asesor).
+   */
+  hasAcademicApproval(req: RequirementInstance): boolean {
+    if (!req.approvals) return false;
+    return req.approvals.some(
+      a => a.type === ApprovalType.ACADEMIC && a.decision === ApprovalDecision.APPROVED
+    );
+  }
+
+  /**
+   * Verifica si un RequirementInstance tiene aprobación administrativa (de secretaría).
+   */
+  hasAdministrativeApproval(req: RequirementInstance): boolean {
+    if (!req.approvals) return false;
+    return req.approvals.some(
+      a => a.type === ApprovalType.ADMINISTRATIVE && a.decision === ApprovalDecision.APPROVED
+    );
+  }
+
+  /**
+   * Obtiene las aprobaciones de un RequirementInstance específico.
+   */
+  getRequirementApprovals(req: RequirementInstance): Approval[] {
+    return req.approvals || [];
   }
 
   formatDate(dateString: string): string {

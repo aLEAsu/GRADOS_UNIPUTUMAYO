@@ -72,7 +72,7 @@
                   @if (validationErrors[item.id]) {
                     <span class="validation-error"><i class="pi pi-exclamation-circle"></i> {{ validationErrors[item.id] }}</span>
                   }
-                  <button class="obs-btn" (click)="addObservation(item)" [disabled]="!observationTexts[item.id].trim()">
+                  <button class="obs-btn" (click)="addObservation(item)" [disabled]="!(observationTexts[item.id] || '').trim()">
                     <i class="pi pi-plus"></i> Agregar Observación
                   </button>
                 </div>
@@ -91,6 +91,9 @@
                     <i class="pi pi-times"></i> Rechazar
                   </button>
                 </div>
+                @if (validationErrors[item.id] && (validationErrors[item.id].includes('Error') || validationErrors[item.id].includes('permiso') || validationErrors[item.id].includes('no está'))) {
+                  <span class="action-error"><i class="pi pi-exclamation-circle"></i> {{ validationErrors[item.id] }}</span>
+                }
               </div>
             </div>
           }

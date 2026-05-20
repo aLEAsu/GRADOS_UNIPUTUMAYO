@@ -1,33 +1,31 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
-import { User } from '@prisma/client';
+import { GoogleOAuthConfig } from '../../../config/app.config';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
+  private readonly logger = new Logger(GoogleStrategy.name);
+
   constructor(
     configService: ConfigService,
     private authService: AuthService,
   ) {
+    const googleConfig = configService.get<GoogleOAuthConfig>('google');
 
-    /* Verificar que las variables si llegan */
-    const clientId = configService.get('app.googleClientId');
-    const clientSecret = configService.get('app.googleClientSecret');
-    const callbackUrl = configService.get('app.googleCallbackUrl');
-
-    console.log('Google OAuth Config:',{
-      clientId,
-      clientSecret,
-      callbackUrl,
+    if (!googleConfig?.clientId || !googleConfig?.clientSecret) {
+      // Log warning but don't crash — Google OAuth is optional
+      new Logger(GoogleStrategy.name).warn(
+        'Google OAuth credentials not configured. Google login will be unavailable.',
+      );
     }
-    );
 
     super({
-      clientID: configService.get('app.googleClientId'),
-      clientSecret: configService.get('app.googleClientSecret'),
-      callbackURL: configService.get('app.googleCallbackUrl'),
+      clientID: googleConfig?.clientId || 'not-configured',
+      clientSecret: googleConfig?.clientSecret || 'not-configured',
+      callbackURL: googleConfig?.callbackUrl || 'http://localhost:4000/api/v1/auth/google/callback',
       scope: ['email', 'profile'],
     });
   }
@@ -35,14 +33,20 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   async validate(
     accessToken: string,
     refreshToken: string,
-    profile: any,
+    profile: {
+      id: string;
+      displayName: string;
+      name?: { givenName?: string; familyName?: string };
+      emails?: Array<{ value: string }>;
+    },
     done: VerifyCallback,
   ): Promise<void> {
     try {
       const user = await this.authService.validateGoogleUser(profile);
       done(null, user);
     } catch (error) {
-      done(error, false);
+      this.logger.error(`Google OAuth validation failed: ${(error as Error).message}`);
+      done(error as Error, false);
     }
   }
 }

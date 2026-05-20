@@ -53,7 +53,7 @@ export class DashboardComponent implements OnInit {
     } else if (role === UserRole.ADVISOR) {
       this.reviewService.getPendingAcademicReviews().subscribe({
         next: reviews => {
-          this.pendingReviews.set(reviews);
+          this.pendingReviews.set(reviews.map(item => this.mapReviewItem(item)));
           this.isLoading.set(false);
         },
         error: () => this.isLoading.set(false)
@@ -69,6 +69,24 @@ export class DashboardComponent implements OnInit {
     } else {
       this.isLoading.set(false);
     }
+  }
+
+  private mapReviewItem(item: any): any {
+    const latestDocument = item.documentVersions?.[0];
+    const student = item.degreeProcess?.student;
+    const documentType = item.modalityRequirement?.documentType;
+
+    return {
+      ...item,
+      processId: item.degreeProcess?.id,
+      requirementInstanceId: item.id,
+      documentVersionId: latestDocument?.id,
+      documentName: documentType?.name || latestDocument?.originalFileName || 'Documento',
+      studentName: student ? `${student.firstName} ${student.lastName}` : '',
+      title: item.degreeProcess?.title || item.degreeProcess?.modality?.name || 'Proceso de grado',
+      processTitle: item.degreeProcess?.title || item.degreeProcess?.modality?.name || 'Proceso de grado',
+      uploadDate: latestDocument?.uploadedAt || item.updatedAt || item.createdAt
+    };
   }
 
   getGreeting(): string {

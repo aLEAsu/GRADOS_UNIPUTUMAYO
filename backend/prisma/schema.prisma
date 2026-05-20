@@ -113,6 +113,8 @@ model User {
   documentVersionsUploaded   DocumentVersion[] @relation("UploadedByUser")
   approvalsGiven       Approval[] @relation("ApproverUser")
   signaturesApplied    DigitalSignature[] @relation("SignedByUser")
+  signatureImages      SignatureImage[] @relation("SignatureImageUser")
+  signatureImagesUploaded SignatureImage[] @relation("SignatureImageUploader")
   observations         Observation[] @relation("AuthorObservation")
   notifications        Notification[]
   auditEvents          AuditEvent[] @relation("UserAuditEvent")
@@ -187,6 +189,7 @@ model DocumentType {
 
   // Relations
   modalityRequirements ModalityRequirement[]
+  signatureConfigs     SignatureConfig[]
 
   @@map("document_types")
 }
@@ -305,6 +308,7 @@ model DigitalSignature {
   requirementInstanceId String   @db.Uuid @map("requirement_instance_id")
   documentVersionId     String   @db.Uuid @map("document_version_id")
   signedById            String   @db.Uuid @map("signed_by_id")
+  signatureImageId      String?  @db.Uuid @map("signature_image_id")
   signatureHash         String   @map("signature_hash")
   certificateSerial     String?  @map("certificate_serial")
   signedDocumentPath    String?  @map("signed_document_path")
@@ -315,8 +319,53 @@ model DigitalSignature {
   requirementInstance   RequirementInstance @relation(fields: [requirementInstanceId], references: [id], onDelete: Cascade)
   documentVersion       DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
   signedBy              User     @relation("SignedByUser", fields: [signedById], references: [id], onDelete: Restrict)
+  signatureImage        SignatureImage? @relation(fields: [signatureImageId], references: [id], onDelete: SetNull)
 
   @@map("digital_signatures")
+}
+
+model SignatureImage {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @db.Uuid @map("user_id")
+  imagePath       String   @map("image_path")
+  originalFileName String  @map("original_file_name")
+  label           String
+  isActive        Boolean  @default(true) @map("is_active")
+  uploadedById    String   @db.Uuid @map("uploaded_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user            User     @relation("SignatureImageUser", fields: [userId], references: [id], onDelete: Cascade)
+  uploadedBy      User     @relation("SignatureImageUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  digitalSignatures DigitalSignature[]
+  signatureConfigs  SignatureConfig[]
+
+  @@unique([userId])
+  @@map("signature_images")
+}
+
+model SignatureConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  documentTypeId  String   @db.Uuid @map("document_type_id")
+  signerRole      String   @map("signer_role")
+  signatureImageId String? @db.Uuid @map("signature_image_id")
+  positionX       Float    @default(0) @map("position_x")
+  positionY       Float    @default(0) @map("position_y")
+  width           Float    @default(150) @map("width")
+  height          Float    @default(60) @map("height")
+  displayOrder    Int      @default(0) @map("display_order")
+  label           String
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  documentType    DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+  signatureImage  SignatureImage? @relation(fields: [signatureImageId], references: [id], onDelete: SetNull)
+
+  @@unique([documentTypeId, signerRole, displayOrder])
+  @@map("signature_configs")
 }
 
 model Observation {

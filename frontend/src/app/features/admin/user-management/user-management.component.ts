@@ -17,8 +17,8 @@ export class UserManagementComponent implements OnInit {
   loading = signal(true);
   error = signal('');
   searchTerm = '';
-  filterRole: string = 'all';
-  filterStatus: string = 'all';
+  filterRole = 'all';
+  filterStatus = 'all';
   processingId: string | null = null;
   roleChangingId: string | null = null;
   currentPage = 1;

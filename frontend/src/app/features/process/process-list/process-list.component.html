@@ -113,7 +113,7 @@
                 @if (viewType() === 'assigned') {
                   <td class="col-advisor">
                     <span class="advisor-name">
-                      {{ process.advisor?.firstName }} {{ process.advisor?.lastName || 'No asignado' }}
+                      {{ formatAdvisorName(process.advisor) }}
                     </span>
                   </td>
                 }

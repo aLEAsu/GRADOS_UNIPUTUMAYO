@@ -8,10 +8,19 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { StorageService } from '../../shared/storage/storage.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { PDFDocument, rgb } from 'pdf-lib';
 import * as forge from 'node-forge';
 import * as fs from 'fs';
 import * as path from 'path';
-import { ApprovalDecision, ApprovalType, DocumentStatus, UserRole } from '@prisma/client';
+import * as QRCode from 'qrcode';
+import { ApprovalDecision, ApprovalType, DocumentStatus, ProcessStatus, UserRole, NotificationType } from '@prisma/client';
+import {
+  CreateSignatureImageDto,
+  UpdateSignatureImageDto,
+  CreateSignatureConfigDto,
+  UpdateSignatureConfigDto,
+} from './dto/sign-document.dto';
 
 export interface SignatureVerification {
   isValid: boolean;
@@ -35,6 +44,14 @@ export interface KeyPairGenerationResult {
   message: string;
 }
 
+export interface SignProcessResult {
+  processId: string;
+  signedDocuments: number;
+  totalDocuments: number;
+  signatures: any[];
+  processStatus: string;
+}
+
 @Injectable()
 export class SignaturesService {
   private logger = new Logger('SignaturesService');
@@ -43,12 +60,1035 @@ export class SignaturesService {
     private prisma: PrismaService,
     private configService: ConfigService,
     private storageService: StorageService,
+    private notificationsService: NotificationsService,
   ) {}
 
+  // =============================================
+  // SIGNATURE IMAGE MANAGEMENT (Admin uploads)
+  // =============================================
+
   /**
-   * Sign a document with the institutional private key
-   * Only SECRETARY and ADMIN roles can sign documents
-   * Both academic and administrative approvals must exist
+   * Upload a signature image for a user
+   * Only ADMIN/SUPERADMIN can upload
+   */
+  async createSignatureImage(
+    dto: CreateSignatureImageDto,
+    file: Express.Multer.File,
+    uploadedByUserId: string,
+  ) {
+    // Validate the target user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: dto.userId },
+    });
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    // Check if user already has a signature image
+    const existing = await this.prisma.signatureImage.findUnique({
+      where: { userId: dto.userId },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        'Este usuario ya tiene una imagen de firma. Use la actualización para reemplazarla.',
+      );
+    }
+
+    // Validate file is an image (PNG preferred for transparency)
+    const allowedMimes = ['image/png', 'image/jpeg', 'image/webp'];
+    if (!allowedMimes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        `Tipo de archivo no permitido: ${file.mimetype}. Use PNG, JPEG o WebP.`,
+      );
+    }
+
+    // Store the signature image
+    const subPath = `signatures/${dto.userId}`;
+    const uploadResult = await this.storageService.uploadFile(file, subPath);
+
+    const signatureImage = await this.prisma.signatureImage.create({
+      data: {
+        userId: dto.userId,
+        imagePath: uploadResult.storagePath,
+        originalFileName: file.originalname,
+        label: dto.label,
+        uploadedById: uploadedByUserId,
+      },
+      include: {
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true, role: true },
+        },
+      },
+    });
+
+    this.logger.log(`Signature image created for user ${dto.userId}`);
+    return signatureImage;
+  }
+
+  /**
+   * Update signature image (replace image or update label)
+   */
+  async updateSignatureImage(
+    id: string,
+    dto: UpdateSignatureImageDto,
+    file?: Express.Multer.File,
+  ) {
+    const existing = await this.prisma.signatureImage.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException('Imagen de firma no encontrada');
+    }
+
+    const updateData: any = {};
+    if (dto.label !== undefined) updateData.label = dto.label;
+    if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
+
+    // Replace image file if provided
+    if (file) {
+      const allowedMimes = ['image/png', 'image/jpeg', 'image/webp'];
+      if (!allowedMimes.includes(file.mimetype)) {
+        throw new BadRequestException(
+          `Tipo de archivo no permitido: ${file.mimetype}. Use PNG, JPEG o WebP.`,
+        );
+      }
+
+      // Delete old file
+      try {
+        await this.storageService.deleteFile(existing.imagePath);
+      } catch (e) {
+        this.logger.warn(`Could not delete old signature image: ${e.message}`);
+      }
+
+      // Upload new file
+      const subPath = `signatures/${existing.userId}`;
+      const uploadResult = await this.storageService.uploadFile(file, subPath);
+      updateData.imagePath = uploadResult.storagePath;
+      updateData.originalFileName = file.originalname;
+    }
+
+    return this.prisma.signatureImage.update({
+      where: { id },
+      data: updateData,
+      include: {
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true, role: true },
+        },
+      },
+    });
+  }
+
+  /**
+   * Get all signature images
+   */
+  async getAllSignatureImages() {
+    return this.prisma.signatureImage.findMany({
+      include: {
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true, role: true },
+        },
+        uploadedBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get signature image by ID
+   */
+  async getSignatureImageById(id: string) {
+    const image = await this.prisma.signatureImage.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true, role: true },
+        },
+      },
+    });
+    if (!image) {
+      throw new NotFoundException('Imagen de firma no encontrada');
+    }
+    return image;
+  }
+
+  /**
+   * Delete a signature image
+   */
+  async deleteSignatureImage(id: string) {
+    const existing = await this.prisma.signatureImage.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      throw new NotFoundException('Imagen de firma no encontrada');
+    }
+
+    // Delete file from storage
+    try {
+      await this.storageService.deleteFile(existing.imagePath);
+    } catch (e) {
+      this.logger.warn(`Could not delete signature image file: ${e.message}`);
+    }
+
+    await this.prisma.signatureImage.delete({ where: { id } });
+    return { message: 'Imagen de firma eliminada correctamente' };
+  }
+
+  /**
+   * Download signature image file
+   */
+  async getSignatureImageFile(id: string): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
+    const image = await this.prisma.signatureImage.findUnique({ where: { id } });
+    if (!image) {
+      throw new NotFoundException('Imagen de firma no encontrada');
+    }
+
+    const buffer = await this.storageService.getFile(image.imagePath);
+    const ext = path.extname(image.originalFileName).toLowerCase();
+    const mimeMap: Record<string, string> = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
+    };
+
+    return {
+      buffer,
+      fileName: image.originalFileName,
+      mimeType: mimeMap[ext] || 'image/png',
+    };
+  }
+
+  // =============================================
+  // SIGNATURE CONFIG MANAGEMENT
+  // =============================================
+
+  /**
+   * Create a signature config for a document type
+   */
+  async createSignatureConfig(dto: CreateSignatureConfigDto) {
+    // Validate document type exists
+    const docType = await this.prisma.documentType.findUnique({
+      where: { id: dto.documentTypeId },
+    });
+    if (!docType) {
+      throw new NotFoundException('Tipo de documento no encontrado');
+    }
+
+    // Validate signature image if provided
+    if (dto.signatureImageId) {
+      const image = await this.prisma.signatureImage.findUnique({
+        where: { id: dto.signatureImageId },
+      });
+      if (!image) {
+        throw new NotFoundException('Imagen de firma no encontrada');
+      }
+    }
+
+    return this.prisma.signatureConfig.create({
+      data: {
+        documentTypeId: dto.documentTypeId,
+        signerRole: dto.signerRole,
+        signatureImageId: dto.signatureImageId || null,
+        positionX: dto.positionX,
+        positionY: dto.positionY,
+        width: dto.width || 150,
+        height: dto.height || 60,
+        displayOrder: dto.displayOrder || 0,
+        label: dto.label,
+      },
+      include: {
+        documentType: { select: { id: true, name: true, code: true } },
+        signatureImage: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true, role: true } },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Update a signature config
+   */
+  async updateSignatureConfig(id: string, dto: UpdateSignatureConfigDto) {
+    const existing = await this.prisma.signatureConfig.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Configuración de firma no encontrada');
+    }
+
+    if (dto.signatureImageId) {
+      const image = await this.prisma.signatureImage.findUnique({
+        where: { id: dto.signatureImageId },
+      });
+      if (!image) {
+        throw new NotFoundException('Imagen de firma no encontrada');
+      }
+    }
+
+    return this.prisma.signatureConfig.update({
+      where: { id },
+      data: {
+        ...(dto.signatureImageId !== undefined && { signatureImageId: dto.signatureImageId }),
+        ...(dto.positionX !== undefined && { positionX: dto.positionX }),
+        ...(dto.positionY !== undefined && { positionY: dto.positionY }),
+        ...(dto.width !== undefined && { width: dto.width }),
+        ...(dto.height !== undefined && { height: dto.height }),
+        ...(dto.displayOrder !== undefined && { displayOrder: dto.displayOrder }),
+        ...(dto.label !== undefined && { label: dto.label }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
+      include: {
+        documentType: { select: { id: true, name: true, code: true } },
+        signatureImage: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true, role: true } },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Get all signature configs
+   */
+  async getAllSignatureConfigs() {
+    return this.prisma.signatureConfig.findMany({
+      include: {
+        documentType: { select: { id: true, name: true, code: true } },
+        signatureImage: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true, role: true } },
+          },
+        },
+      },
+      orderBy: [{ documentType: { name: 'asc' } }, { displayOrder: 'asc' }],
+    });
+  }
+
+  /**
+   * Get signature configs by document type
+   */
+  async getSignatureConfigsByDocumentType(documentTypeId: string) {
+    return this.prisma.signatureConfig.findMany({
+      where: { documentTypeId, isActive: true },
+      include: {
+        documentType: { select: { id: true, name: true, code: true } },
+        signatureImage: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true, role: true } },
+          },
+        },
+      },
+      orderBy: { displayOrder: 'asc' },
+    });
+  }
+
+  /**
+   * Delete a signature config
+   */
+  async deleteSignatureConfig(id: string) {
+    const existing = await this.prisma.signatureConfig.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Configuración de firma no encontrada');
+    }
+    await this.prisma.signatureConfig.delete({ where: { id } });
+    return { message: 'Configuración de firma eliminada correctamente' };
+  }
+
+  // =============================================
+  // PROCESS SIGNING (BULK - Main Feature)
+  // =============================================
+
+  /**
+   * Get all processes ready for signing (status APPROVED)
+   */
+  async getProcessesReadyForSigning() {
+    return this.prisma.degreeProcess.findMany({
+      where: { status: ProcessStatus.APPROVED },
+      include: {
+        student: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+        advisor: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+        modality: { select: { id: true, name: true, code: true } },
+        requirementInstances: {
+          include: {
+            modalityRequirement: {
+              include: { documentType: { include: { signatureConfigs: true } } },
+            },
+            documentVersions: {
+              orderBy: { uploadedAt: 'desc' },
+              take: 1,
+            },
+            digitalSignatures: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Sign ALL documents in a process
+   * This is the main action: iterates all requirementInstances,
+   * applies visual signatures to the PDF based on SignatureConfig,
+   * records DigitalSignature entries, and transitions to FINALIZADO/COMPLETED
+   */
+  async signProcess(
+    processId: string,
+    signedByUserId: string,
+    ipAddress?: string,
+  ): Promise<SignProcessResult> {
+    this.logger.log(`Starting bulk signing for process: ${processId}`);
+
+    // Validate user
+    const user = await this.prisma.user.findUnique({ where: { id: signedByUserId } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (
+      user.role !== UserRole.ADMIN &&
+      user.role !== UserRole.SUPERADMIN
+    ) {
+      throw new ForbiddenException('Solo ADMIN o SUPERADMIN pueden firmar procesos');
+    }
+
+    // Load process with all details
+    const process = await this.prisma.degreeProcess.findUnique({
+      where: { id: processId },
+      include: {
+        advisor: { select: { id: true, firstName: true, lastName: true } },
+        student: { select: { id: true, firstName: true, lastName: true } },
+        requirementInstances: {
+          include: {
+            modalityRequirement: {
+              include: {
+                documentType: {
+                  include: {
+                    signatureConfigs: {
+                      where: { isActive: true },
+                      include: {
+                        signatureImage: true,
+                      },
+                      orderBy: { displayOrder: 'asc' },
+                    },
+                  },
+                },
+              },
+            },
+            documentVersions: {
+              orderBy: { uploadedAt: 'desc' },
+              take: 1,
+            },
+            approvals: true,
+            digitalSignatures: true,
+          },
+        },
+      },
+    });
+
+    if (!process) throw new NotFoundException('Proceso no encontrado');
+    if (process.status !== ProcessStatus.APPROVED) {
+      throw new BadRequestException(
+        `El proceso debe estar en estado APPROVED para firmar. Estado actual: ${process.status}`,
+      );
+    }
+
+    // VALIDACIÓN CRÍTICA: Verificar que TODOS los documentos APROBADOS tengan configuración de firma
+    const unconfiguredTypes = process.requirementInstances
+      .filter((ri) => ri.status === DocumentStatus.APROBADO)
+      .filter(
+        (ri) =>
+          !ri.modalityRequirement.documentType.signatureConfigs ||
+          ri.modalityRequirement.documentType.signatureConfigs.length === 0,
+      )
+      .map((ri) => ri.modalityRequirement.documentType.name);
+
+    if (unconfiguredTypes.length > 0) {
+      throw new BadRequestException(
+        `No se puede firmar: los siguientes tipos de documento no tienen configuración de firma: ${unconfiguredTypes.join(', ')}. Configure las posiciones de firma antes de proceder.`,
+      );
+    }
+
+    const signatures: any[] = [];
+    let signedCount = 0;
+
+    // Process each requirement instance
+    for (const reqInstance of process.requirementInstances) {
+      // Skip if already signed (FINALIZADO)
+      if (reqInstance.status === DocumentStatus.FINALIZADO) {
+        this.logger.debug(`Skipping already finalized requirement: ${reqInstance.id}`);
+        continue;
+      }
+
+      // Must be APROBADO to sign
+      if (reqInstance.status !== DocumentStatus.APROBADO) {
+        this.logger.warn(
+          `Requirement ${reqInstance.id} is not APROBADO (status: ${reqInstance.status}), skipping`,
+        );
+        continue;
+      }
+
+      // Get latest document version
+      const latestVersion = reqInstance.documentVersions[0];
+      if (!latestVersion) {
+        this.logger.warn(`No document version for requirement ${reqInstance.id}, skipping`);
+        continue;
+      }
+
+      // Get signature configs for this document type
+      const signatureConfigs = reqInstance.modalityRequirement.documentType.signatureConfigs;
+      if (!signatureConfigs || signatureConfigs.length === 0) {
+        this.logger.warn(
+          `No signature config for document type ${reqInstance.modalityRequirement.documentType.code}, signing without visual stamps`,
+        );
+      }
+
+      // Apply visual signatures + QR to the PDF
+      const signedPdfResult = await this.applyVisualSignaturesToPdf(
+        latestVersion.storagePath,
+        signatureConfigs,
+        process.advisor,
+        reqInstance.id,
+      );
+
+      // Create digital signature records for each signer config
+      const signatureRecords = await this.prisma.$transaction(async (tx) => {
+        const records = [];
+
+        // Save the signed PDF
+        const signedDocPath = signedPdfResult.storagePath;
+
+        for (const config of signatureConfigs) {
+          const record = await tx.digitalSignature.create({
+            data: {
+              requirementInstanceId: reqInstance.id,
+              documentVersionId: latestVersion.id,
+              signedById: signedByUserId,
+              signatureImageId: config.signatureImageId || null,
+              signatureHash: signedPdfResult.hash,
+              signedDocumentPath: signedDocPath,
+              timestamp: new Date(),
+              metadata: {
+                algorithm: 'VISUAL-PDF-STAMP',
+                signerRole: config.signerRole,
+                signerLabel: config.label,
+                positionX: config.positionX,
+                positionY: config.positionY,
+              },
+            },
+            include: {
+              signedBy: {
+                select: { id: true, firstName: true, lastName: true },
+              },
+            },
+          });
+          records.push(record);
+        }
+
+        // Nota: Ya no se permite firmar sin configuraciones.
+        // La validación al inicio del método garantiza que siempre hay configs.
+
+        // Transition requirement to FINALIZADO
+        await tx.requirementInstance.update({
+          where: { id: reqInstance.id },
+          data: { status: DocumentStatus.FINALIZADO },
+        });
+
+        return records;
+      });
+
+      signatures.push(...signatureRecords);
+      signedCount++;
+    }
+
+    // Transition process to COMPLETED if all requirements are FINALIZADO
+    const updatedProcess = await this.prisma.$transaction(async (tx) => {
+      const freshProcess = await tx.degreeProcess.findUnique({
+        where: { id: processId },
+        include: { requirementInstances: { select: { status: true } } },
+      });
+
+      const allFinalized = freshProcess!.requirementInstances.every(
+        (r) => r.status === DocumentStatus.FINALIZADO,
+      );
+
+      if (allFinalized) {
+        return tx.degreeProcess.update({
+          where: { id: processId },
+          data: {
+            status: ProcessStatus.COMPLETED,
+            completedAt: new Date(),
+          },
+        });
+      }
+
+      return freshProcess;
+    });
+
+    this.logger.log(
+      `Process ${processId} signing completed: ${signedCount}/${process.requirementInstances.length} documents signed`,
+    );
+
+    // Audit logging
+    await this.logAuditEvent({
+      userId: signedByUserId,
+      action: 'SIGN_PROCESS',
+      entity: 'DegreeProcess',
+      entityId: processId,
+      ipAddress,
+      details: {
+        signedDocuments: signedCount,
+        totalDocuments: process.requirementInstances.length,
+        processStatus: updatedProcess!.status,
+      },
+    });
+
+    // Notify student via email + in-app notification
+    await this.notifyStudentProcessSigned(process, signedCount);
+
+    return {
+      processId,
+      signedDocuments: signedCount,
+      totalDocuments: process.requirementInstances.length,
+      signatures,
+      processStatus: updatedProcess!.status,
+    };
+  }
+
+  /**
+   * Sign a SINGLE requirement instance within a process
+   */
+  async signSingleRequirement(
+    processId: string,
+    requirementInstanceId: string,
+    signedByUserId: string,
+    ipAddress?: string,
+  ) {
+    this.logger.log(
+      `Signing single requirement ${requirementInstanceId} in process ${processId}`,
+    );
+
+    const user = await this.prisma.user.findUnique({ where: { id: signedByUserId } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPERADMIN) {
+      throw new ForbiddenException('Solo ADMIN o SUPERADMIN pueden firmar documentos');
+    }
+
+    const process = await this.prisma.degreeProcess.findUnique({
+      where: { id: processId },
+      include: {
+        advisor: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+    if (!process) throw new NotFoundException('Proceso no encontrado');
+    if (process.status !== ProcessStatus.APPROVED) {
+      throw new BadRequestException(
+        `El proceso debe estar APPROVED para firmar. Estado actual: ${process.status}`,
+      );
+    }
+
+    const reqInstance = await this.prisma.requirementInstance.findUnique({
+      where: { id: requirementInstanceId },
+      include: {
+        modalityRequirement: {
+          include: {
+            documentType: {
+              include: {
+                signatureConfigs: {
+                  where: { isActive: true },
+                  include: { signatureImage: true },
+                  orderBy: { displayOrder: 'asc' },
+                },
+              },
+            },
+          },
+        },
+        documentVersions: { orderBy: { uploadedAt: 'desc' }, take: 1 },
+        digitalSignatures: true,
+      },
+    });
+
+    if (!reqInstance) throw new NotFoundException('Requisito no encontrado');
+    if (reqInstance.degreeProcessId !== processId) {
+      throw new BadRequestException('El requisito no pertenece a este proceso');
+    }
+    if (reqInstance.status === DocumentStatus.FINALIZADO) {
+      throw new BadRequestException('Este documento ya está firmado');
+    }
+    if (reqInstance.status !== DocumentStatus.APROBADO) {
+      throw new BadRequestException(
+        `El documento debe estar APROBADO para firmar. Estado actual: ${reqInstance.status}`,
+      );
+    }
+
+    const signatureConfigs = reqInstance.modalityRequirement.documentType.signatureConfigs;
+    if (!signatureConfigs || signatureConfigs.length === 0) {
+      throw new BadRequestException(
+        `El tipo de documento "${reqInstance.modalityRequirement.documentType.name}" no tiene configuración de firma. Configúrelo primero.`,
+      );
+    }
+
+    const latestVersion = reqInstance.documentVersions[0];
+    if (!latestVersion) {
+      throw new BadRequestException('No hay versión de documento para firmar');
+    }
+
+    const signedPdfResult = await this.applyVisualSignaturesToPdf(
+      latestVersion.storagePath,
+      signatureConfigs,
+      process.advisor,
+      requirementInstanceId,
+    );
+
+    const signatureRecords = await this.prisma.$transaction(async (tx) => {
+      const records = [];
+      const signedDocPath = signedPdfResult.storagePath;
+
+      for (const config of signatureConfigs) {
+        const record = await tx.digitalSignature.create({
+          data: {
+            requirementInstanceId: reqInstance.id,
+            documentVersionId: latestVersion.id,
+            signedById: signedByUserId,
+            signatureImageId: config.signatureImageId || null,
+            signatureHash: signedPdfResult.hash,
+            signedDocumentPath: signedDocPath,
+            timestamp: new Date(),
+            metadata: {
+              algorithm: 'VISUAL-PDF-STAMP',
+              signerRole: config.signerRole,
+              signerLabel: config.label,
+              positionX: config.positionX,
+              positionY: config.positionY,
+            },
+          },
+        });
+        records.push(record);
+      }
+
+      await tx.requirementInstance.update({
+        where: { id: reqInstance.id },
+        data: { status: DocumentStatus.FINALIZADO },
+      });
+
+      return records;
+    });
+
+    // Check if ALL requirements are now FINALIZADO to transition process
+    const freshProcess = await this.prisma.degreeProcess.findUnique({
+      where: { id: processId },
+      include: { requirementInstances: { select: { status: true } } },
+    });
+    const allFinalized = freshProcess!.requirementInstances.every(
+      (r) => r.status === DocumentStatus.FINALIZADO,
+    );
+    if (allFinalized) {
+      await this.prisma.degreeProcess.update({
+        where: { id: processId },
+        data: { status: ProcessStatus.COMPLETED, completedAt: new Date() },
+      });
+    }
+
+    // Audit logging
+    await this.logAuditEvent({
+      userId: signedByUserId,
+      action: 'SIGN_SINGLE_REQUIREMENT',
+      entity: 'RequirementInstance',
+      entityId: requirementInstanceId,
+      ipAddress,
+      details: {
+        processId,
+        documentType: reqInstance.modalityRequirement.documentType.name,
+        processCompleted: allFinalized,
+      },
+    });
+
+    // Notify student if process is now completed
+    if (allFinalized) {
+      const fullProcess = await this.prisma.degreeProcess.findUnique({
+        where: { id: processId },
+        include: { student: true, modality: true, requirementInstances: true },
+      });
+      if (fullProcess) {
+        await this.notifyStudentProcessSigned(fullProcess, fullProcess.requirementInstances.length);
+      }
+    }
+
+    return {
+      requirementInstanceId,
+      signedDocuments: 1,
+      signatures: signatureRecords,
+      processCompleted: allFinalized,
+    };
+  }
+
+  /**
+   * Sign ALL ready processes (bulk operation for 2000+ students)
+   */
+  async signAllReadyProcesses(signedByUserId: string, ipAddress?: string) {
+    const readyProcesses = await this.getProcessesReadyForSigning();
+
+    if (readyProcesses.length === 0) {
+      return { totalProcesses: 0, signedProcesses: 0, errors: [] };
+    }
+
+    const results: { processId: string; success: boolean; error?: string; result?: SignProcessResult }[] = [];
+
+    for (const process of readyProcesses) {
+      try {
+        const result = await this.signProcess(process.id, signedByUserId, ipAddress);
+        results.push({ processId: process.id, success: true, result });
+      } catch (error) {
+        results.push({
+          processId: process.id,
+          success: false,
+          error: error.message || 'Error desconocido',
+        });
+      }
+    }
+
+    return {
+      totalProcesses: readyProcesses.length,
+      signedProcesses: results.filter((r) => r.success).length,
+      failedProcesses: results.filter((r) => !r.success).length,
+      errors: results.filter((r) => !r.success).map((r) => ({
+        processId: r.processId,
+        error: r.error,
+      })),
+    };
+  }
+
+  /**
+   * Validate that a process has all signature configs ready
+   */
+  async validateProcessConfigs(processId: string) {
+    const process = await this.prisma.degreeProcess.findUnique({
+      where: { id: processId },
+      include: {
+        requirementInstances: {
+          include: {
+            modalityRequirement: {
+              include: {
+                documentType: {
+                  include: { signatureConfigs: { where: { isActive: true } } },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!process) throw new NotFoundException('Proceso no encontrado');
+
+    const requirements = process.requirementInstances.map((ri) => {
+      const configs = ri.modalityRequirement.documentType.signatureConfigs || [];
+      return {
+        requirementInstanceId: ri.id,
+        documentTypeName: ri.modalityRequirement.documentType.name,
+        documentTypeId: ri.modalityRequirement.documentType.id,
+        status: ri.status,
+        hasConfigs: configs.length > 0,
+        configCount: configs.length,
+      };
+    });
+
+    const unconfigured = requirements.filter((r) => !r.hasConfigs && r.status === 'APROBADO');
+    return {
+      processId,
+      isReady: unconfigured.length === 0,
+      totalRequirements: requirements.length,
+      unconfiguredRequirements: unconfigured,
+      requirements,
+    };
+  }
+
+  /**
+   * Apply visual signature images onto a PDF using pdf-lib
+   * Reads the original PDF, inserts signature images on the last page,
+   * saves to a new file, and returns the path + hash
+   */
+  private async applyVisualSignaturesToPdf(
+    originalStoragePath: string,
+    signatureConfigs: any[],
+    advisor: any,
+    requirementInstanceId?: string,
+  ): Promise<{ storagePath: string; hash: string }> {
+    // Read original PDF
+    const originalBuffer = await this.storageService.getFile(originalStoragePath);
+
+    // Load PDF with pdf-lib
+    const pdfDoc = await PDFDocument.load(originalBuffer);
+    const pages = pdfDoc.getPages();
+
+    if (pages.length === 0) {
+      throw new BadRequestException('El PDF no tiene páginas');
+    }
+
+    const lastPage = pages[pages.length - 1];
+
+    // Apply each signature config to the last page
+    for (const config of signatureConfigs) {
+      if (!config.signatureImage) {
+        this.logger.warn(`No signature image for config ${config.id} (role: ${config.signerRole}), skipping visual stamp`);
+        continue;
+      }
+
+      try {
+        // Read the signature image file
+        const imageBuffer = await this.storageService.getFile(config.signatureImage.imagePath);
+
+        // Determine image type and embed
+        const ext = path.extname(config.signatureImage.originalFileName).toLowerCase();
+        let embeddedImage;
+        if (ext === '.png') {
+          embeddedImage = await pdfDoc.embedPng(imageBuffer);
+        } else if (ext === '.jpg' || ext === '.jpeg') {
+          embeddedImage = await pdfDoc.embedJpg(imageBuffer);
+        } else {
+          // For webp or other formats, try PNG first
+          try {
+            embeddedImage = await pdfDoc.embedPng(imageBuffer);
+          } catch {
+            embeddedImage = await pdfDoc.embedJpg(imageBuffer);
+          }
+        }
+
+        // Draw the signature image at the configured position
+        // PDF coordinates: (0,0) is bottom-left
+        lastPage.drawImage(embeddedImage, {
+          x: config.positionX,
+          y: config.positionY,
+          width: config.width,
+          height: config.height,
+        });
+
+        this.logger.debug(
+          `Applied signature for ${config.signerRole} at (${config.positionX}, ${config.positionY})`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to apply signature for config ${config.id}: ${error.message}`,
+        );
+        throw new BadRequestException(
+          `Error al aplicar firma visual (${config.label}): ${error.message}`,
+        );
+      }
+    }
+
+    // Embed QR code for verification on the last page
+    if (requirementInstanceId) {
+      try {
+        const apiUrl = this.configService.get<string>('app.corsOrigin') || 'http://localhost:4200';
+        const verifyUrl = `${apiUrl}/verify/${requirementInstanceId}`;
+        const qrPngBuffer = await QRCode.toBuffer(verifyUrl, {
+          width: 70,
+          margin: 1,
+          errorCorrectionLevel: 'M',
+        });
+        const qrImage = await pdfDoc.embedPng(qrPngBuffer);
+        // Place QR at bottom-right corner of last page
+        const pageWidth = lastPage.getWidth();
+        lastPage.drawImage(qrImage, {
+          x: pageWidth - 85,
+          y: 15,
+          width: 60,
+          height: 60,
+        });
+        // Small verification label below QR
+        lastPage.drawText('Verificar firma', {
+          x: pageWidth - 90,
+          y: 5,
+          size: 6,
+          color: rgb(0.4, 0.4, 0.4),
+        });
+      } catch (qrError) {
+        this.logger.warn(`Could not embed QR code: ${(qrError as any).message}`);
+      }
+    }
+
+    // Save modified PDF
+    const signedPdfBytes = await pdfDoc.save();
+    const signedBuffer = Buffer.from(signedPdfBytes);
+
+    // Compute hash of signed document
+    const crypto = require('crypto');
+    const hash = crypto.createHash('sha256').update(signedBuffer).digest('hex');
+
+    // Save signed PDF to storage
+    const signedFile: Express.Multer.File = {
+      buffer: signedBuffer,
+      originalname: `signed_${path.basename(originalStoragePath)}`,
+      mimetype: 'application/pdf',
+      size: signedBuffer.length,
+    } as Express.Multer.File;
+
+    const uploadResult = await this.storageService.uploadFile(
+      signedFile,
+      'signed-documents',
+    );
+
+    return {
+      storagePath: uploadResult.storagePath,
+      hash,
+    };
+  }
+
+  // =============================================
+  // SIGNED DOCUMENT DOWNLOAD
+  // =============================================
+
+  /**
+   * Download a signed document by requirement instance ID
+   */
+  async downloadSignedDocument(requirementInstanceId: string): Promise<{
+    buffer: Buffer;
+    fileName: string;
+    mimeType: string;
+  }> {
+    // Find the latest signature with a signed document path
+    const signature = await this.prisma.digitalSignature.findFirst({
+      where: {
+        requirementInstanceId,
+        signedDocumentPath: { not: null },
+      },
+      include: {
+        documentVersion: true,
+        requirementInstance: {
+          include: {
+            modalityRequirement: {
+              include: { documentType: true },
+            },
+          },
+        },
+      },
+      orderBy: { timestamp: 'desc' },
+    });
+
+    if (!signature || !signature.signedDocumentPath) {
+      throw new NotFoundException('No se encontró documento firmado para este requisito');
+    }
+
+    const buffer = await this.storageService.getFile(signature.signedDocumentPath);
+    const docTypeName = signature.requirementInstance.modalityRequirement.documentType.name;
+    const fileName = `${docTypeName}_firmado.pdf`;
+
+    return {
+      buffer,
+      fileName,
+      mimeType: 'application/pdf',
+    };
+  }
+
+  // =============================================
+  // EXISTING METHODS (kept for backward compatibility)
+  // =============================================
+
+  /**
+   * Sign a single document (legacy method)
    */
   async signDocument(
     requirementInstanceId: string,
@@ -59,22 +1099,20 @@ export class SignaturesService {
       `Attempting to sign document: requirementInstanceId=${requirementInstanceId}, documentVersionId=${documentVersionId}`,
     );
 
-    // Validate user exists and has proper role
     const user = await this.prisma.user.findUnique({
       where: { id: signedByUserId },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException('User not found');
+
+    if (
+      user.role !== UserRole.SECRETARY &&
+      user.role !== UserRole.ADMIN &&
+      user.role !== UserRole.SUPERADMIN
+    ) {
+      throw new ForbiddenException('Only SECRETARY or ADMIN users can sign documents');
     }
 
-    if (user.role !== UserRole.SECRETARY && user.role !== UserRole.ADMIN && user.role !== UserRole.SUPERADMIN) {
-      throw new ForbiddenException(
-        'Only SECRETARY or ADMIN users can sign documents',
-      );
-    }
-
-    // Validate requirement instance exists
     const requirementInstance = await this.prisma.requirementInstance.findUnique({
       where: { id: requirementInstanceId },
       include: {
@@ -83,26 +1121,19 @@ export class SignaturesService {
       },
     });
 
-    if (!requirementInstance) {
-      throw new NotFoundException('Requirement instance not found');
-    }
+    if (!requirementInstance) throw new NotFoundException('Requirement instance not found');
 
-    // Validate document version exists and belongs to this requirement
     const documentVersion = await this.prisma.documentVersion.findUnique({
       where: { id: documentVersionId },
     });
 
-    if (!documentVersion) {
-      throw new NotFoundException('Document version not found');
-    }
+    if (!documentVersion) throw new NotFoundException('Document version not found');
 
     if (documentVersion.requirementInstanceId !== requirementInstanceId) {
-      throw new BadRequestException(
-        'Document version does not belong to this requirement instance',
-      );
+      throw new BadRequestException('Document version does not belong to this requirement instance');
     }
 
-    // Validate both ACADEMIC and ADMINISTRATIVE approvals exist and are APPROVED
+    // Validate approvals
     const academicApproval = await this.prisma.approval.findFirst({
       where: {
         requirementInstanceId,
@@ -120,65 +1151,41 @@ export class SignaturesService {
     });
 
     if (!academicApproval) {
-      throw new BadRequestException(
-        'Academic approval not found or not approved for this requirement',
-      );
+      throw new BadRequestException('Academic approval not found or not approved');
     }
-
     if (!administrativeApproval) {
-      throw new BadRequestException(
-        'Administrative approval not found or not approved for this requirement',
-      );
+      throw new BadRequestException('Administrative approval not found or not approved');
     }
 
-    // Validate requirement status is EN_REVISION or compatible
-    if (requirementInstance.status !== DocumentStatus.EN_REVISION) {
+    const allowedStatuses: DocumentStatus[] = [DocumentStatus.APROBADO, DocumentStatus.EN_REVISION];
+    if (!allowedStatuses.includes(requirementInstance.status as DocumentStatus)) {
       throw new BadRequestException(
-        `Document must be in EN_REVISION status. Current status: ${requirementInstance.status}`,
+        `Document must be in APROBADO or EN_REVISION status to sign. Current status: ${requirementInstance.status}`,
       );
     }
 
     try {
-      // Read document file from storage
-      const documentBuffer = await this.storageService.getFile(
-        documentVersion.storagePath,
-      );
+      const documentBuffer = await this.storageService.getFile(documentVersion.storagePath);
 
-      // Compute SHA-256 hash of the document
       const md = forge.md.sha256.create();
       md.update(documentBuffer.toString('binary'));
       const documentHash = md.digest().toHex();
 
-      // Load and sign with institutional private key
-      const privateKeyPath = this.configService.get<string>(
-        'signatures.privateKeyPath',
-      );
+      const privateKeyPath = this.configService.get<string>('signatures.privateKeyPath');
 
-      if (!privateKeyPath) {
-        throw new Error(
-          'SIGNATURE_PRIVATE_KEY_PATH not configured. Please generate keys first.',
-        );
-      }
-
-      if (!fs.existsSync(privateKeyPath)) {
-        throw new Error(
-          `Private key file not found at ${privateKeyPath}. Please generate keys first.`,
-        );
+      if (!privateKeyPath || !fs.existsSync(privateKeyPath)) {
+        throw new Error('SIGNATURE_PRIVATE_KEY_PATH not configured or file not found');
       }
 
       const privateKeyPem = fs.readFileSync(privateKeyPath, 'utf-8');
       const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
 
-      // Sign the hash
       const md2 = forge.md.sha256.create();
       md2.update(documentHash, 'hex' as any);
       const signature = privateKey.sign(md2);
       const signatureBase64 = Buffer.from(signature, 'binary').toString('base64');
 
-      // Get certificate serial from the certificate file
-      const certificatePath = this.configService.get<string>(
-        'signatures.certificatePath',
-      );
+      const certificatePath = this.configService.get<string>('signatures.certificatePath');
       let certificateSerial: string | null = null;
 
       if (certificatePath && fs.existsSync(certificatePath)) {
@@ -191,7 +1198,6 @@ export class SignaturesService {
         }
       }
 
-      // Create DigitalSignature record
       const signature_record = await this.prisma.digitalSignature.create({
         data: {
           requirementInstanceId,
@@ -208,29 +1214,29 @@ export class SignaturesService {
         },
         include: {
           signedBy: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-            },
+            select: { id: true, email: true, firstName: true, lastName: true },
           },
         },
       });
 
-      this.logger.log(
-        `Document signed successfully: ${requirementInstanceId} by user ${signedByUserId}`,
-      );
+      if (requirementInstance.status === DocumentStatus.APROBADO) {
+        await this.prisma.requirementInstance.update({
+          where: { id: requirementInstanceId },
+          data: { status: DocumentStatus.FINALIZADO },
+        });
+      }
 
+      this.logger.log(`Document signed successfully: ${requirementInstanceId}`);
       return signature_record;
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof ForbiddenException || error instanceof NotFoundException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
-      this.logger.error(
-        `Failed to sign document: ${(error as any).message}`,
-        (error as any).stack,
-      );
+      this.logger.error(`Failed to sign document: ${(error as any).message}`);
       throw new BadRequestException(`Failed to sign document: ${(error as any).message}`);
     }
   }
@@ -239,54 +1245,37 @@ export class SignaturesService {
    * Verify a digital signature
    */
   async verifySignature(signatureId: string): Promise<SignatureVerification> {
-    this.logger.debug(`Verifying signature: ${signatureId}`);
-
-    // Load the signature record
     const signature = await this.prisma.digitalSignature.findUnique({
       where: { id: signatureId },
-      include: {
-        documentVersion: true,
-        signedBy: true,
-      },
+      include: { documentVersion: true, signedBy: true },
     });
 
-    if (!signature) {
-      throw new NotFoundException('Signature not found');
-    }
+    if (!signature) throw new NotFoundException('Signature not found');
 
     try {
-      // Load the document from storage
       const documentBuffer = await this.storageService.getFile(
         signature.documentVersion.storagePath,
       );
 
-      // Recompute hash
       const md = forge.md.sha256.create();
       md.update(documentBuffer.toString('binary'));
       const recomputedHash = md.digest().toHex();
 
-      // Load public key from certificate
-      const certificatePath = this.configService.get<string>(
-        'signatures.certificatePath',
-      );
-
+      const certificatePath = this.configService.get<string>('signatures.certificatePath');
       if (!certificatePath || !fs.existsSync(certificatePath)) {
-        throw new Error(
-          'Certificate file not found. Cannot verify signature.',
-        );
+        throw new Error('Certificate file not found');
       }
 
       const certPem = fs.readFileSync(certificatePath, 'utf-8');
       const cert = forge.pki.certificateFromPem(certPem);
       const publicKey = cert.publicKey;
 
-      // Verify the signature
       const md2 = forge.md.sha256.create();
       md2.update(recomputedHash, 'hex' as any);
       const signatureBytes = Buffer.from(signature.signatureHash, 'base64').toString('binary');
       const isValid = (publicKey as any).verify(md2.digest().bytes(), signatureBytes);
 
-      const result: SignatureVerification = {
+      return {
         isValid,
         details: {
           signedBy: `${signature.signedBy.firstName} ${signature.signedBy.lastName}`,
@@ -294,20 +1283,9 @@ export class SignaturesService {
           documentHash: (signature.metadata as any)?.documentHash || recomputedHash,
         },
       };
-
-      this.logger.log(
-        `Signature verification completed: ${signatureId} - isValid: ${isValid}`,
-      );
-
-      return result;
     } catch (error) {
-      this.logger.error(
-        `Failed to verify signature: ${(error as any).message}`,
-        (error as any).stack,
-      );
-      throw new BadRequestException(
-        `Failed to verify signature: ${(error as any).message}`,
-      );
+      this.logger.error(`Failed to verify signature: ${(error as any).message}`);
+      throw new BadRequestException(`Failed to verify signature: ${(error as any).message}`);
     }
   }
 
@@ -315,119 +1293,62 @@ export class SignaturesService {
    * Get all signatures for a degree process
    */
   async getSignaturesByProcess(processId: string) {
-    this.logger.debug(`Getting signatures for process: ${processId}`);
-
-    const signatures = await this.prisma.digitalSignature.findMany({
+    return this.prisma.digitalSignature.findMany({
       where: {
-        requirementInstance: {
-          degreeProcessId: processId,
-        },
+        requirementInstance: { degreeProcessId: processId },
       },
       include: {
         signedBy: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-          },
+          select: { id: true, email: true, firstName: true, lastName: true },
         },
         documentVersion: {
-          select: {
-            id: true,
-            fileName: true,
-            originalFileName: true,
-          },
+          select: { id: true, fileName: true, originalFileName: true },
         },
         requirementInstance: {
-          select: {
-            id: true,
-            status: true,
-          },
+          select: { id: true, status: true },
         },
       },
-      orderBy: {
-        timestamp: 'desc',
-      },
+      orderBy: { timestamp: 'desc' },
     });
-
-    return signatures;
   }
 
   /**
-   * Get signature for a specific requirement instance
+   * Get signatures for a specific requirement instance
    */
   async getSignaturesByDocument(requirementInstanceId: string) {
-    this.logger.debug(
-      `Getting signatures for requirement: ${requirementInstanceId}`,
-    );
-
-    const signatures = await this.prisma.digitalSignature.findMany({
-      where: {
-        requirementInstanceId,
-      },
+    return this.prisma.digitalSignature.findMany({
+      where: { requirementInstanceId },
       include: {
         signedBy: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-          },
+          select: { id: true, email: true, firstName: true, lastName: true },
         },
         documentVersion: {
-          select: {
-            id: true,
-            fileName: true,
-            originalFileName: true,
-            versionNumber: true,
-          },
+          select: { id: true, fileName: true, originalFileName: true, versionNumber: true },
         },
       },
-      orderBy: {
-        timestamp: 'desc',
-      },
+      orderBy: { timestamp: 'desc' },
     });
-
-    return signatures;
   }
 
   /**
-   * Generate RSA 2048-bit key pair
-   * ADMIN-only utility method
-   * This is a setup utility, only runs once
+   * Generate RSA key pair (SUPERADMIN only)
    */
   async generateKeyPair(): Promise<KeyPairGenerationResult> {
-    this.logger.log('Generating new RSA 2048-bit key pair for signatures');
+    this.logger.log('Generating new RSA 2048-bit key pair');
 
     try {
-      // Generate RSA key pair
       const keyPair = forge.pki.rsa.generateKeyPair({ bits: 2048 });
-
-      // Create self-signed certificate
       const cert = forge.pki.createCertificate();
       cert.publicKey = keyPair.publicKey;
       cert.serialNumber = '01';
       cert.validity.notBefore = new Date();
       cert.validity.notAfter = new Date();
-      cert.validity.notAfter.setFullYear(
-        cert.validity.notAfter.getFullYear() + 5,
-      );
+      cert.validity.notAfter.setFullYear(cert.validity.notAfter.getFullYear() + 5);
 
-      // Set certificate subject and issuer
       const attrs = [
-        {
-          name: 'commonName',
-          value: 'Instituto Tecnologico del Putumayo - CIECYT',
-        },
-        {
-          name: 'organizationName',
-          value: 'Instituto Tecnologico del Putumayo',
-        },
-        {
-          name: 'organizationalUnitName',
-          value: 'CIECYT - Centro de Investigaciones',
-        },
+        { name: 'commonName', value: 'Instituto Tecnologico del Putumayo - CIECYT' },
+        { name: 'organizationName', value: 'Instituto Tecnologico del Putumayo' },
+        { name: 'organizationalUnitName', value: 'CIECYT - Centro de Investigaciones' },
         { name: 'localityName', value: 'Mocoa' },
         { name: 'stateOrProvinceName', value: 'Putumayo' },
         { name: 'countryName', value: 'CO' },
@@ -435,37 +1356,25 @@ export class SignaturesService {
 
       cert.setSubject(attrs);
       cert.setIssuer(attrs);
-
-      // Self-sign the certificate
       cert.sign(keyPair.privateKey, forge.md.sha256.create());
 
-      // Convert to PEM format
       const privateKeyPem = forge.pki.privateKeyToPem(keyPair.privateKey);
       const certificatePem = forge.pki.certificateToPem(cert);
 
-      // Get paths from config
-      const privateKeyPath = this.configService.get<string>(
-        'signatures.privateKeyPath',
-      ) || './certs/private-key.pem';
-      const certificatePath = this.configService.get<string>(
-        'signatures.certificatePath',
-      ) || './certs/certificate.pem';
+      const privateKeyPath =
+        this.configService.get<string>('signatures.privateKeyPath') || './certs/private-key.pem';
+      const certificatePath =
+        this.configService.get<string>('signatures.certificatePath') || './certs/certificate.pem';
 
-      // Create directory if needed
       const privateKeyDir = path.dirname(privateKeyPath);
       if (!fs.existsSync(privateKeyDir)) {
         fs.mkdirSync(privateKeyDir, { recursive: true });
       }
 
-      // Save private key (with restricted permissions)
       fs.writeFileSync(privateKeyPath, privateKeyPem, { mode: 0o600 });
-      this.logger.log(`Private key saved to ${privateKeyPath}`);
-
-      // Save certificate
       fs.writeFileSync(certificatePath, certificatePem, { mode: 0o644 });
-      this.logger.log(`Certificate saved to ${certificatePath}`);
 
-      const result: KeyPairGenerationResult = {
+      return {
         certificateInfo: {
           serial: cert.serialNumber,
           subject: `CN=${attrs[0].value}`,
@@ -475,16 +1384,9 @@ export class SignaturesService {
         },
         message: 'Key pair generated and saved successfully',
       };
-
-      return result;
     } catch (error) {
-      this.logger.error(
-        `Failed to generate key pair: ${(error as any).message}`,
-        (error as any).stack,
-      );
-      throw new BadRequestException(
-        `Failed to generate key pair: ${(error as any).message}`,
-      );
+      this.logger.error(`Failed to generate key pair: ${(error as any).message}`);
+      throw new BadRequestException(`Failed to generate key pair: ${(error as any).message}`);
     }
   }
 
@@ -492,49 +1394,422 @@ export class SignaturesService {
    * Get certificate information
    */
   async getCertificateInfo(): Promise<CertificateInfo> {
-    this.logger.debug('Getting certificate information');
-
     try {
-      const certificatePath = this.configService.get<string>(
-        'signatures.certificatePath',
-      );
-
+      const certificatePath = this.configService.get<string>('signatures.certificatePath');
       if (!certificatePath || !fs.existsSync(certificatePath)) {
-        throw new NotFoundException(
-          'Certificate file not found. Please generate keys first.',
-        );
+        throw new NotFoundException('Certificate file not found');
       }
 
       const certPem = fs.readFileSync(certificatePath, 'utf-8');
       const cert = forge.pki.certificateFromPem(certPem);
 
-      // Format subject and issuer
-      const formatName = (attrs: any[]) => {
-        return attrs
-          .map((attr) => `${attr.name}=${attr.value}`)
-          .join(', ');
-      };
+      const formatName = (attrs: any[]) =>
+        attrs.map((attr) => `${attr.name}=${attr.value}`).join(', ');
 
-      const certInfo: CertificateInfo = {
+      return {
         serial: cert.serialNumber,
         subject: formatName(cert.subject.attributes),
         issuer: formatName(cert.issuer.attributes),
         validFrom: cert.validity.notBefore.toISOString(),
         validTo: cert.validity.notAfter.toISOString(),
       };
-
-      return certInfo;
     } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      this.logger.error(
-        `Failed to get certificate info: ${(error as any).message}`,
-        (error as any).stack,
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Failed to get certificate info: ${(error as any).message}`);
+    }
+  }
+
+  // =============================================
+  // AUDIT LOGGING
+  // =============================================
+
+  /**
+   * Log a signature audit event using the existing AuditEvent model
+   */
+  private async logAuditEvent(params: {
+    userId: string;
+    action: string;
+    entity: string;
+    entityId: string;
+    ipAddress?: string;
+    details?: Record<string, any>;
+  }): Promise<void> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: params.userId },
+        select: { role: true },
+      });
+
+      await this.prisma.auditEvent.create({
+        data: {
+          userId: params.userId,
+          userRole: user?.role || null,
+          action: params.action,
+          entity: params.entity,
+          entityId: params.entityId,
+          ipAddress: params.ipAddress || null,
+          newValue: params.details || null,
+          timestamp: new Date(),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(`Failed to log audit event: ${(error as any).message}`);
+    }
+  }
+
+  /**
+   * Get signature audit logs with pagination and filters
+   */
+  async getSignatureAuditLogs(options: {
+    page?: number;
+    limit?: number;
+    userId?: string;
+    action?: string;
+  }) {
+    const page = options.page || 1;
+    const limit = Math.min(options.limit || 20, 100);
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      action: { startsWith: 'SIGN' },
+    };
+    if (options.userId) where.userId = options.userId;
+    if (options.action) where.action = options.action;
+
+    const [data, total] = await Promise.all([
+      this.prisma.auditEvent.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { timestamp: 'desc' },
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, role: true } },
+        },
+      }),
+      this.prisma.auditEvent.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    };
+  }
+
+  // =============================================
+  // STUDENT NOTIFICATION (Email + In-App)
+  // =============================================
+
+  /**
+   * Notify student when their process documents are signed
+   */
+  private async notifyStudentProcessSigned(
+    process: any,
+    signedCount: number,
+  ): Promise<void> {
+    try {
+      const studentId = process.studentId || process.student?.id;
+      const studentEmail = process.student?.email;
+      const studentName = process.student?.firstName || 'Estudiante';
+      const modalityName = process.modality?.name || '';
+
+      if (!studentId) return;
+
+      // In-app notification
+      await this.notificationsService.createNotification(
+        studentId,
+        NotificationType.SIGNATURE_APPLIED,
+        'Documentos Firmados',
+        `Se han firmado ${signedCount} documento(s) de tu proceso de grado (${modalityName}). Ya puedes descargar los documentos firmados desde tu panel.`,
+        { processId: process.id, signedCount },
       );
+
+      // Email notification
+      if (studentEmail) {
+        const htmlBody = `
+          <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+            <div style="background: linear-gradient(135deg, #1e40af, #4338ca); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 22px;">Documentos Firmados</h1>
+            </div>
+            <div style="background: #ffffff; padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;">
+              <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+                Hola <strong>${studentName}</strong>,
+              </p>
+              <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+                Te informamos que se han firmado digitalmente <strong>${signedCount} documento(s)</strong>
+                de tu proceso de grado <strong>${modalityName}</strong>.
+              </p>
+              <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+                Ya puedes acceder a tu panel y descargar los documentos firmados con las firmas institucionales correspondientes.
+              </p>
+              <div style="text-align: center; margin: 28px 0;">
+                <a href="${this.configService.get<string>('app.corsOrigin') || 'http://localhost:4200'}/process/${process.id}"
+                   style="display: inline-block; padding: 12px 32px; background: #1e40af; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                  Ver Mi Proceso
+                </a>
+              </div>
+              <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+              <p style="color: #94a3b8; font-size: 12px; text-align: center;">
+                Este es un mensaje automático del Sistema de Gestión de Grados — ITP
+              </p>
+            </div>
+          </div>
+        `;
+
+        await this.notificationsService.sendEmailNotification(
+          studentEmail,
+          `Documentos Firmados — Proceso de Grado ${modalityName}`,
+          htmlBody,
+        ).catch((err) => {
+          this.logger.warn(`Email notification failed for ${studentEmail}: ${err.message}`);
+        });
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to notify student: ${(error as any).message}`);
+    }
+  }
+
+  // =============================================
+  // PAGINATED PROCESSES READY FOR SIGNING
+  // =============================================
+
+  /**
+   * Get processes ready for signing with pagination (for 2000+ students)
+   */
+  async getProcessesReadyForSigningPaginated(options: {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }) {
+    const page = options.page || 1;
+    const limit = Math.min(options.limit || 20, 100);
+    const skip = (page - 1) * limit;
+
+    const where: any = { status: ProcessStatus.APPROVED };
+
+    if (options.search) {
+      const search = options.search.trim();
+      where.OR = [
+        { student: { firstName: { contains: search, mode: 'insensitive' } } },
+        { student: { lastName: { contains: search, mode: 'insensitive' } } },
+        { modality: { name: { contains: search, mode: 'insensitive' } } },
+        { title: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.degreeProcess.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          student: {
+            select: { id: true, email: true, firstName: true, lastName: true },
+          },
+          advisor: {
+            select: { id: true, email: true, firstName: true, lastName: true },
+          },
+          modality: { select: { id: true, name: true, code: true } },
+          requirementInstances: {
+            include: {
+              modalityRequirement: {
+                include: { documentType: { include: { signatureConfigs: true } } },
+              },
+              documentVersions: {
+                orderBy: { uploadedAt: 'desc' },
+                take: 1,
+              },
+              digitalSignatures: true,
+            },
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+      }),
+      this.prisma.degreeProcess.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    };
+  }
+
+  // =============================================
+  // ARCHIVE PROCESSES
+  // =============================================
+
+  /**
+   * Archive a completed process (COMPLETED → ARCHIVED)
+   */
+  async archiveProcess(processId: string, userId: string, ipAddress?: string) {
+    const process = await this.prisma.degreeProcess.findUnique({
+      where: { id: processId },
+    });
+
+    if (!process) throw new NotFoundException('Proceso no encontrado');
+    if (process.status !== ProcessStatus.COMPLETED) {
       throw new BadRequestException(
-        `Failed to get certificate info: ${(error as any).message}`,
+        `Solo se pueden archivar procesos en estado COMPLETED. Estado actual: ${process.status}`,
       );
     }
+
+    const updated = await this.prisma.degreeProcess.update({
+      where: { id: processId },
+      data: {
+        status: ProcessStatus.ARCHIVED,
+        archivedAt: new Date(),
+      },
+    });
+
+    await this.logAuditEvent({
+      userId,
+      action: 'ARCHIVE_PROCESS',
+      entity: 'DegreeProcess',
+      entityId: processId,
+      ipAddress,
+      details: { previousStatus: ProcessStatus.COMPLETED },
+    });
+
+    return { message: 'Proceso archivado correctamente', process: updated };
+  }
+
+  /**
+   * Bulk archive: archive all completed processes older than N days
+   */
+  async archiveCompletedProcesses(daysOld: number, userId: string, ipAddress?: string) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+    const processes = await this.prisma.degreeProcess.findMany({
+      where: {
+        status: ProcessStatus.COMPLETED,
+        completedAt: { lte: cutoffDate },
+      },
+      select: { id: true },
+    });
+
+    if (processes.length === 0) {
+      return { archivedCount: 0, message: 'No hay procesos para archivar' };
+    }
+
+    await this.prisma.degreeProcess.updateMany({
+      where: {
+        id: { in: processes.map((p) => p.id) },
+      },
+      data: {
+        status: ProcessStatus.ARCHIVED,
+        archivedAt: new Date(),
+      },
+    });
+
+    await this.logAuditEvent({
+      userId,
+      action: 'BULK_ARCHIVE',
+      entity: 'DegreeProcess',
+      entityId: 'bulk',
+      ipAddress,
+      details: { archivedCount: processes.length, daysOld },
+    });
+
+    return {
+      archivedCount: processes.length,
+      message: `${processes.length} proceso(s) archivado(s) correctamente`,
+    };
+  }
+
+  // =============================================
+  // UNSIGN / REVERT SIGNATURE
+  // =============================================
+
+  /**
+   * Revert a signed document back to APROBADO status
+   * Removes digital signatures and deletes the signed PDF
+   */
+  async unsignRequirement(
+    processId: string,
+    requirementInstanceId: string,
+    userId: string,
+    ipAddress?: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPERADMIN) {
+      throw new ForbiddenException('Solo ADMIN o SUPERADMIN pueden revertir firmas');
+    }
+
+    const reqInstance = await this.prisma.requirementInstance.findUnique({
+      where: { id: requirementInstanceId },
+      include: {
+        digitalSignatures: true,
+        modalityRequirement: { include: { documentType: true } },
+      },
+    });
+
+    if (!reqInstance) throw new NotFoundException('Requisito no encontrado');
+    if (reqInstance.degreeProcessId !== processId) {
+      throw new BadRequestException('El requisito no pertenece a este proceso');
+    }
+    if (reqInstance.status !== DocumentStatus.FINALIZADO) {
+      throw new BadRequestException(
+        `Solo se pueden revertir documentos en estado FINALIZADO. Estado actual: ${reqInstance.status}`,
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Delete signed document files
+      for (const sig of reqInstance.digitalSignatures) {
+        if (sig.signedDocumentPath) {
+          try {
+            await this.storageService.deleteFile(sig.signedDocumentPath);
+          } catch (e) {
+            this.logger.warn(`Could not delete signed file: ${sig.signedDocumentPath}`);
+          }
+        }
+      }
+
+      // Remove all digital signatures for this requirement
+      await tx.digitalSignature.deleteMany({
+        where: { requirementInstanceId },
+      });
+
+      // Revert status to APROBADO
+      await tx.requirementInstance.update({
+        where: { id: requirementInstanceId },
+        data: { status: DocumentStatus.APROBADO },
+      });
+
+      // If process was COMPLETED, revert to APPROVED
+      const process = await tx.degreeProcess.findUnique({
+        where: { id: processId },
+      });
+      if (process?.status === ProcessStatus.COMPLETED) {
+        await tx.degreeProcess.update({
+          where: { id: processId },
+          data: {
+            status: ProcessStatus.APPROVED,
+            completedAt: null,
+          },
+        });
+      }
+    });
+
+    // Audit log
+    await this.logAuditEvent({
+      userId,
+      action: 'UNSIGN_REQUIREMENT',
+      entity: 'RequirementInstance',
+      entityId: requirementInstanceId,
+      ipAddress,
+      details: {
+        processId,
+        documentType: reqInstance.modalityRequirement.documentType.name,
+        removedSignatures: reqInstance.digitalSignatures.length,
+      },
+    });
+
+    return {
+      message: 'Firma revertida correctamente. El documento vuelve a estado APROBADO.',
+      requirementInstanceId,
+      processId,
+    };
   }
 }

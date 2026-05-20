@@ -15,13 +15,19 @@ async function bootstrap(): Promise<void> {
   const appConfig = configService.get<AppConfig>('app');
   const logger = new Logger('Bootstrap');
 
+  // Validate critical environment variables at startup
+  const jwtAccessSecret = configService.get<string>('jwt.accessSecret');
+  if (!jwtAccessSecret || jwtAccessSecret.includes('change')) {
+    logger.warn('⚠️  JWT_ACCESS_SECRET is not set or uses default value. Change it for production!');
+  }
+
   // Security middleware
   app.use(helmet());
   app.use(cookieParser());
 
   // CORS configuration
   app.enableCors({
-    origin: appConfig.corsOrigin,
+    origin: appConfig?.corsOrigin || 'http://localhost:4200',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -30,7 +36,7 @@ async function bootstrap(): Promise<void> {
   // Global prefix
   app.setGlobalPrefix('api/v1');
 
-  // Global validation pipe
+  // Global validation pipe with UUID support
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -42,8 +48,9 @@ async function bootstrap(): Promise<void> {
   // Global exception filter
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  // Global interceptors
-  app.useGlobalInterceptors(new AuditInterceptor());
+  // Global audit interceptor (DI-based — resolved from container)
+  const auditInterceptor = app.get(AuditInterceptor);
+  app.useGlobalInterceptors(auditInterceptor);
 
   // Swagger configuration
   const swaggerConfig = new DocumentBuilder()
@@ -58,11 +65,6 @@ async function bootstrap(): Promise<void> {
       },
       'bearer',
     )
-    .addCookieAuth('sessionId', {
-      type: 'apiKey',
-      in: 'cookie',
-      description: 'Session authentication',
-    })
     .addTag('auth', 'Authentication endpoints')
     .addTag('users', 'User management endpoints')
     .addTag('degree-process', 'Degree processing endpoints')
@@ -71,17 +73,17 @@ async function bootstrap(): Promise<void> {
     .addTag('signatures', 'Digital signature endpoints')
     .addTag('notifications', 'Notification endpoints')
     .addTag('admin', 'Administration endpoints')
+    .addTag('audit', 'Audit log endpoints')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = appConfig.port || 3000;
+  const port = appConfig?.port || 3000;
   await app.listen(port, '0.0.0.0');
-  
-  Logger.log(`Backend corriendo en el puerto ${port}`);
+
   logger.log(`Application is running on port ${port}`);
-  logger.log(`Environment: ${appConfig.environment}`);
+  logger.log(`Environment: ${appConfig?.environment}`);
   logger.log(`Swagger documentation available at http://localhost:${port}/api/docs`);
   logger.log(`API base URL: http://localhost:${port}/api/v1`);
 }

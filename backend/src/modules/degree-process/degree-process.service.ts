@@ -5,6 +5,8 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
+import { IntegrationService } from '../integration/integration.service';
+import { StudentEligibilityResult } from '../integration/dto/external-student.dto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import { CreateProcessDto } from './dto/create-process.dto';
@@ -38,6 +40,7 @@ export class DegreeProcessService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private integrationService: IntegrationService,
   ) {
     this.maxActiveProcessesPerAdvisor =
       this.configService.get('degree.maxActiveProcessesPerAdvisor') || 10;
@@ -102,11 +105,40 @@ export class DegreeProcessService {
       );
     }
 
-    // Check if student has completed required subjects
+    // Check if student has completed required subjects.
+    // Behavior depends on integration flag:
+    // - If `ITP_INTEGRATION_ENABLED` = true: try to validate against external API and update profile.
+    // - If disabled (local/testing): allow creation for registered users (skip external validation).
     if (!student.studentProfile.hasCompletedSubjects) {
-      throw new BusinessRuleViolationError(
-        'Student must have completed required subjects to create a degree process',
-      );
+      const integrationEnabled = this.configService.get<boolean>('ITP_INTEGRATION_ENABLED') === true;
+
+      if (!integrationEnabled) {
+        this.logger.warn(
+          `ITP integration disabled: allowing process creation for local user ${studentUserId}`,
+        );
+        // Local/testing mode: skip external eligibility check and allow creation
+      } else {
+        try {
+          const result: StudentEligibilityResult = await this.integrationService.validateStudentEligibility(
+            student.studentProfile.studentCode,
+          );
+
+          if (result.eligible) {
+            // Persist the positive eligibility to avoid repeated external calls
+            await this.prisma.studentProfile.update({
+              where: { userId: studentUserId },
+              data: { hasCompletedSubjects: true },
+            });
+          } else {
+            throw new BusinessRuleViolationError(
+              result.reason || 'Student must have completed required subjects to create a degree process',
+            );
+          }
+        } catch (err) {
+          const message = err?.message || 'Student must have completed required subjects to create a degree process';
+          throw new BusinessRuleViolationError(message);
+        }
+      }
     }
 
     // Check if student already has an active process
@@ -414,6 +446,12 @@ export class DegreeProcessService {
       throw new NotFoundException(`Process with ID ${processId} not found`);
     }
 
+    if (process.advisorId) {
+      throw new BusinessRuleViolationError(
+        'Degree process already has an assigned advisor',
+      );
+    }
+
     // Verify advisor exists and has correct role
     const advisor = await this.prisma.user.findUnique({
       where: { id: assignAdvisorDto.advisorUserId },
@@ -431,6 +469,16 @@ export class DegreeProcessService {
       );
     }
 
+    const advisorProfile = await this.prisma.advisorProfile.findUnique({
+      where: { userId: assignAdvisorDto.advisorUserId },
+    });
+
+    if (!advisorProfile || !advisorProfile.isAvailable) {
+      throw new BusinessRuleViolationError(
+        'Assigned advisor must have an available advisor profile',
+      );
+    }
+
     // Check advisor's max active processes
     const activeProcessCount = await this.prisma.degreeProcess.count({
       where: {
@@ -445,27 +493,44 @@ export class DegreeProcessService {
       },
     });
 
-    if (activeProcessCount >= this.maxActiveProcessesPerAdvisor) {
+    const maxAllowed = Math.min(
+      this.maxActiveProcessesPerAdvisor,
+      advisorProfile.maxActiveProcesses,
+    );
+
+    if (activeProcessCount >= maxAllowed) {
       throw new BusinessRuleViolationError(
-        `Advisor has reached maximum number of active processes (${this.maxActiveProcessesPerAdvisor})`,
+        `Advisor has reached maximum number of active processes (${maxAllowed})`,
       );
     }
 
     // Assign advisor
-    const updated = await this.prisma.degreeProcess.update({
-      where: { id: processId },
-      data: {
-        advisorId: assignAdvisorDto.advisorUserId,
-      },
-      include: {
-        student: {
-          select: { id: true, email: true, firstName: true, lastName: true },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedProcess = await tx.degreeProcess.update({
+        where: { id: processId },
+        data: {
+          advisorId: assignAdvisorDto.advisorUserId,
         },
-        advisor: {
-          select: { id: true, email: true, firstName: true, lastName: true },
+        include: {
+          student: {
+            select: { id: true, email: true, firstName: true, lastName: true },
+          },
+          advisor: {
+            select: { id: true, email: true, firstName: true, lastName: true },
+          },
+          modality: { select: { id: true, code: true, name: true } },
         },
-        modality: { select: { id: true, code: true, name: true } },
-      },
+      });
+
+      await tx.advisorProfile.update({
+        where: { userId: assignAdvisorDto.advisorUserId },
+        data: {
+          currentActiveProcesses: activeProcessCount + 1,
+          isAvailable: activeProcessCount + 1 < maxAllowed,
+        },
+      });
+
+      return updatedProcess;
     });
 
     this.logger.log(
@@ -616,7 +681,7 @@ export class DegreeProcessService {
    * @returns Summary with completion percentages
    * @throws NotFoundException if process not found
    */
-  async getProcessSummary(processId: string) {
+  async getProcessSummary(processId: string, userId: string, userRole: string) {
     const process = await this.prisma.degreeProcess.findUnique({
       where: { id: processId },
       include: {
@@ -629,6 +694,9 @@ export class DegreeProcessService {
     if (!process) {
       throw new NotFoundException(`Process with ID ${processId} not found`);
     }
+
+    // Permission check — same rules as getProcessById
+    this.checkAccessPermission(process, userId, userRole);
 
     const totalRequirements = process.requirementInstances.length;
     const approvedRequirements = process.requirementInstances.filter(

@@ -123,6 +123,34 @@ GOOGLE_CLIENT_ID=your_google_client_id
 API_URL=https://api.plataforma-grados-utp.com/api/v1
 ```
 
+## Integration with External Student API
+
+- Backend env vars (set in `backend/.env`):
+	- `ITP_API_BASE_URL` — base URL of the external student API (e.g. `https://sistema-itp.example.com`).
+	- `ITP_API_KEY` — API key used to authenticate requests to the external API.
+
+	- `ITP_INTEGRATION_ENABLED` — `true`/`false`. When `false` (default for development), the backend
+		will NOT call the external student API and will allow registered users to create degree processes
+		locally for testing. Set to `true` in production to enable real eligibility validation.
+
+- The backend exposes admin endpoints to sync and validate student data:
+	- `POST /api/v1/integration/sync-student/:userId` — fetches and updates a student's `StudentProfile` from the external API. Requires `SECRETARY` or `ADMIN` role.
+	- `GET /api/v1/integration/student-eligibility/:studentCode` — checks whether the student has completed required subjects. Requires `SECRETARY` or `ADMIN` role.
+
+- Frontend service: `src/app/core/services/integration.service.ts` provides `syncStudentProfile(userId)` and `validateStudentEligibility(studentCode)` helpers that call the backend. Use them from an admin UI and include an admin JWT in requests.
+
+- Quick example (admin):
+
+```bash
+curl -X POST "http://localhost:4000/api/v1/integration/sync-student/<USER_ID>" \
+	-H "Authorization: Bearer <ADMIN_JWT_TOKEN>" \
+	-H "Content-Type: application/json"
+```
+
+Notes:
+- In development you can manually update `student_profiles.has_completed_subjects` via Prisma Studio (`npx prisma studio`) for testing.
+- Do not disable the backend business rule that requires completed subjects in production.
+
 ## Configuration Files
 
 - `angular.json` - Angular CLI configuration

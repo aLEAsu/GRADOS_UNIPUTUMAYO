@@ -111,8 +111,9 @@ export class ProcessListComponent implements OnInit {
 
     const view = this.viewType();
 
-    if (view === 'my-process') {
-      // Student view: get their own processes
+    if (view === 'my-process' || view === 'assigned') {
+      // Student view: own processes. Advisor view: assigned processes.
+      // Both are served by the backend's role-aware "my-processes" endpoint.
       this.processService.getMyProcesses().subscribe({
         next: (processes: DegreeProcess[]) => {
           this.processes.set(processes);
@@ -126,7 +127,7 @@ export class ProcessListComponent implements OnInit {
         }
       });
     } else {
-      // Assigned (advisor) or All (admin/secretary) view: paginated
+      // All processes view: secretary/admin only.
       const params = {
         page: this.currentPage(),
         limit: this.pageSize(),
@@ -205,6 +206,23 @@ export class ProcessListComponent implements OnInit {
     return false;
   }
 
+  formatAdvisorName(advisor: any): string {
+    if (!advisor) {
+      return 'No asignado';
+    }
+    const firstName = advisor.firstName?.trim() || '';
+    const lastName = advisor.lastName?.trim() || '';
+    
+    if (firstName && lastName) {
+      return `${firstName} ${lastName}`;
+    } else if (firstName) {
+      return firstName;
+    } else if (lastName) {
+      return lastName;
+    }
+    return 'No asignado';
+  }
+
   goToPage(page: number): void {
     if (page >= 1 && page <= this.totalPages()) {
       this.currentPage.set(page);
@@ -217,8 +235,8 @@ export class ProcessListComponent implements OnInit {
     const current = this.currentPage();
     const pages: number[] = [];
 
-    let start = Math.max(1, current - 2);
-    let end = Math.min(total, current + 2);
+    const start = Math.max(1, current - 2);
+    const end = Math.min(total, current + 2);
 
     if (start > 1) {
       pages.push(1);

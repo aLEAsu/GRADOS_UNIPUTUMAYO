@@ -1,0 +1,635 @@
+<div class="sig-container">
+  <!-- Header -->
+  <div class="sig-header">
+    <div class="sig-header-text">
+      <h1>Firmas Digitales</h1>
+      <p>Gestiona las firmas institucionales, configura posiciones y firma procesos aprobados</p>
+    </div>
+    @if (configCompletionStatus().pending > 0) {
+      <div class="header-alert">
+        <i class="pi pi-info-circle"></i>
+        {{ configCompletionStatus().pending }} tipo(s) de documento sin configurar
+      </div>
+    }
+  </div>
+
+  <!-- Alerts -->
+  @if (error()) {
+    <div class="alert alert-error">
+      <i class="pi pi-exclamation-triangle"></i>
+      <span>{{ error() }}</span>
+      <button (click)="error.set('')"><i class="pi pi-times"></i></button>
+    </div>
+  }
+  @if (successMessage()) {
+    <div class="alert alert-success">
+      <i class="pi pi-check-circle"></i>
+      <span>{{ successMessage() }}</span>
+      <button (click)="successMessage.set('')"><i class="pi pi-times"></i></button>
+    </div>
+  }
+
+  <!-- Tabs -->
+  <nav class="tab-nav">
+    <button [class.active]="activeTab() === 'images'" (click)="selectTab('images')">
+      <i class="pi pi-image"></i>
+      <span>Firmas</span>
+      <span class="tab-count">{{ signatureImages().length }}</span>
+    </button>
+    <button [class.active]="activeTab() === 'configs'" (click)="selectTab('configs')">
+      <i class="pi pi-sliders-h"></i>
+      <span>Configuración</span>
+      @if (configCompletionStatus().pending > 0) {
+        <span class="tab-count warn">{{ configCompletionStatus().pending }}</span>
+      } @else {
+        <span class="tab-count ok">{{ configCompletionStatus().configured }}</span>
+      }
+    </button>
+    <button [class.active]="activeTab() === 'signing'" (click)="selectTab('signing')">
+      <i class="pi pi-pencil"></i>
+      <span>Firmar Procesos</span>
+      <span class="tab-count">{{ processesReady().length }}</span>
+    </button>
+    <button [class.active]="activeTab() === 'audit'" (click)="selectTab('audit')">
+      <i class="pi pi-history"></i>
+      <span>Auditoría</span>
+    </button>
+  </nav>
+
+  <!-- ===== TAB: IMAGES ===== -->
+  @if (activeTab() === 'images') {
+    <div class="tab-panel fade-in">
+      <div class="panel-toolbar">
+        <h2>Imágenes de Firma Registradas</h2>
+        <button class="btn btn-primary" (click)="openImageModal()"
+                [disabled]="getUsersWithoutSignature().length === 0">
+          <i class="pi pi-plus"></i> Nueva Imagen
+        </button>
+      </div>
+
+      @if (signatureImages().length === 0) {
+        <div class="empty">
+          <i class="pi pi-image"></i>
+          <h3>Sin imágenes registradas</h3>
+          <p>Suba la primera imagen de firma para un funcionario autorizado.</p>
+        </div>
+      } @else {
+        <div class="img-grid">
+          @for (img of signatureImages(); track img.id) {
+            <div class="img-card">
+              <div class="img-preview">
+                <img [src]="getImageUrl(img.id)" [alt]="img.label" loading="lazy" />
+              </div>
+              <div class="img-info">
+                <strong>{{ img.label }}</strong>
+                <span class="img-user">{{ img.user?.firstName }} {{ img.user?.lastName }}</span>
+                <span class="chip" [class.chip-active]="img.isActive" [class.chip-inactive]="!img.isActive">
+                  {{ getRoleLabelForUser(img.user?.role) }}
+                </span>
+              </div>
+              <div class="img-footer">
+                <span class="status-dot" [class.active]="img.isActive"></span>
+                <span>{{ img.isActive ? 'Activa' : 'Inactiva' }}</span>
+                <button class="btn-sm btn-ghost danger" (click)="deleteImage(img.id)" title="Eliminar">
+                  <i class="pi pi-trash"></i>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ===== TAB: CONFIGS ===== -->
+  @if (activeTab() === 'configs') {
+    <div class="tab-panel fade-in">
+      <div class="panel-toolbar">
+        <div>
+          <h2>Configuración de Posición por Formato</h2>
+          <p class="toolbar-hint">Define dónde se ubica cada firma en la última página del PDF</p>
+        </div>
+        <button class="btn btn-primary" (click)="openConfigModal()">
+          <i class="pi pi-plus"></i> Nueva Configuración
+        </button>
+      </div>
+
+      <!-- Status bar -->
+      @if (documentTypes().length > 0) {
+        <div class="config-status-bar">
+          <div class="config-stat">
+            <span class="config-stat-num">{{ configCompletionStatus().configured }}</span>
+            <span class="config-stat-label">Configurados</span>
+          </div>
+          <div class="config-stat">
+            <span class="config-stat-num warn">{{ configCompletionStatus().pending }}</span>
+            <span class="config-stat-label">Pendientes</span>
+          </div>
+          <div class="config-stat">
+            <span class="config-stat-num">{{ signatureConfigs().length }}</span>
+            <span class="config-stat-label">Reglas totales</span>
+          </div>
+        </div>
+      }
+
+      <!-- Unconfigured types warning -->
+      @if (unconfiguredDocTypes().length > 0) {
+        <div class="alert alert-warn compact">
+          <i class="pi pi-exclamation-triangle"></i>
+          <div>
+            <strong>Tipos de documento sin configurar:</strong>
+            @for (dt of unconfiguredDocTypes(); track dt.id) {
+              <span class="chip chip-outline">{{ dt.name }}</span>
+            }
+          </div>
+        </div>
+      }
+
+      @if (signatureConfigs().length === 0) {
+        <div class="empty">
+          <i class="pi pi-sliders-h"></i>
+          <h3>Sin configuraciones</h3>
+          <p>Cree configuraciones para definir la posición de cada firma en los documentos PDF.</p>
+        </div>
+      } @else {
+        @for (entry of getConfigsByDocType() | keyvalue; track entry.key) {
+          <div class="config-group">
+            <h3 class="config-group-title">
+              <i class="pi pi-file-pdf"></i>
+              {{ entry.key }}
+            </h3>
+            <div class="config-cards">
+              @for (config of entry.value; track config.id) {
+                <div class="config-card">
+                  <div class="config-card-header">
+                    <span class="chip chip-role">{{ getRoleLabel(config.signerRole) }}</span>
+                    <div class="config-card-actions">
+                      <button class="btn-sm btn-ghost" (click)="openConfigModal(config)" title="Editar">
+                        <i class="pi pi-pencil"></i>
+                      </button>
+                      <button class="btn-sm btn-ghost danger" (click)="deleteConfig(config.id)" title="Eliminar">
+                        <i class="pi pi-trash"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="config-card-body">
+                    <span class="config-label">{{ config.label }}</span>
+                    <div class="config-meta">
+                      <span><i class="pi pi-map-marker"></i> {{ config.positionX }}, {{ config.positionY }}</span>
+                      <span><i class="pi pi-arrows-alt"></i> {{ config.width }} x {{ config.height }}</span>
+                      <span><i class="pi pi-sort-amount-up"></i> Orden: {{ config.displayOrder }}</span>
+                    </div>
+                  </div>
+                  <div class="config-card-footer">
+                    @if (config.signatureImage) {
+                      <span class="linked"><i class="pi pi-check-circle"></i> {{ config.signatureImage.label }}</span>
+                    } @else {
+                      <span class="unlinked"><i class="pi pi-link"></i> Sin imagen asignada</span>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
+    </div>
+  }
+
+  <!-- ===== TAB: SIGNING ===== -->
+  @if (activeTab() === 'signing') {
+    <div class="tab-panel fade-in">
+      <div class="panel-toolbar">
+        <div>
+          <h2>Procesos Listos para Firmar</h2>
+          <p class="toolbar-hint">{{ processesReady().length }} proceso(s) en estado APROBADO</p>
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn btn-ghost" (click)="loadProcessesReady()">
+            <i class="pi pi-refresh"></i> Actualizar
+          </button>
+          @if (processesReady().length > 0) {
+            <button class="btn btn-accent"
+                    (click)="signAllProcesses()"
+                    [disabled]="bulkSigningInProgress() || !canSignAnyProcess()">
+              @if (bulkSigningInProgress()) {
+                <i class="pi pi-spin pi-spinner"></i> Firmando todo...
+              } @else {
+                <i class="pi pi-check-square"></i> Firmar Todos ({{ processesReady().length }})
+              }
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Search -->
+      @if (processesReady().length > 5) {
+        <div class="search-bar">
+          <i class="pi pi-search"></i>
+          <input type="text" placeholder="Buscar por estudiante, modalidad o título..."
+                 [(ngModel)]="processSearch" />
+        </div>
+      }
+
+      @if (processesReady().length === 0) {
+        <div class="empty">
+          <i class="pi pi-check-circle"></i>
+          <h3>No hay procesos pendientes</h3>
+          <p>Los procesos aparecerán aquí cuando todos sus documentos estén aprobados.</p>
+        </div>
+      } @else if (filteredProcesses().length === 0) {
+        <div class="empty">
+          <i class="pi pi-search"></i>
+          <h3>Sin resultados</h3>
+          <p>No se encontraron procesos que coincidan con la búsqueda.</p>
+        </div>
+      } @else {
+        <div class="process-list">
+          @for (process of filteredProcesses(); track process.id) {
+            <div class="proc-item" [class.expanded]="expandedProcessId() === process.id">
+              <!-- Process header (clickable) -->
+              <div class="proc-header" (click)="toggleProcess(process.id)">
+                <div class="proc-expand-icon">
+                  <i class="pi" [class.pi-chevron-right]="expandedProcessId() !== process.id"
+                     [class.pi-chevron-down]="expandedProcessId() === process.id"></i>
+                </div>
+                <div class="proc-summary">
+                  <strong>{{ process.student?.firstName }} {{ process.student?.lastName }}</strong>
+                  <span class="proc-meta">{{ process.modality?.name }} — {{ process.titleProject || 'Sin título' }}</span>
+                </div>
+                <div class="proc-badges">
+                  <span class="chip chip-approved">APROBADO</span>
+                  <span class="proc-doc-count">
+                    {{ getProcessRequirementsCount(process).approved }} docs
+                  </span>
+                </div>
+
+                <!-- Quick sign all button -->
+                <div class="proc-quick-actions" (click)="$event.stopPropagation()">
+                  @if (!hasAllConfigsForProcess(process)) {
+                    <span class="chip chip-warn" title="Faltan configuraciones de firma">
+                      <i class="pi pi-exclamation-triangle"></i> Config incompleta
+                    </span>
+                  } @else {
+                    <button class="btn btn-sm btn-primary"
+                            (click)="signProcess(process.id)"
+                            [disabled]="signingInProgress() !== null || signingReqInProgress() !== null">
+                      @if (signingInProgress() === process.id) {
+                        <i class="pi pi-spin pi-spinner"></i>
+                      } @else {
+                        <i class="pi pi-pencil"></i>
+                      }
+                      Firmar Todo
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <!-- Expanded: documents list -->
+              @if (expandedProcessId() === process.id) {
+                <div class="proc-body">
+                  @if (!hasAllConfigsForProcess(process)) {
+                    <div class="alert alert-warn compact inside">
+                      <i class="pi pi-exclamation-triangle"></i>
+                      <span>
+                        Documentos sin configurar:
+                        @for (name of getUnconfiguredDocsForProcess(process); track name) {
+                          <strong>{{ name }}</strong>{{ $last ? '' : ', ' }}
+                        }
+                        — Configure las firmas en la pestaña "Configuración" antes de firmar.
+                      </span>
+                    </div>
+                  }
+
+                  <div class="doc-list">
+                    @for (req of process.requirementInstances; track req.id) {
+                      @if (req.status === 'APROBADO') {
+                        <div class="doc-row">
+                          <div class="doc-info">
+                            <i class="pi pi-file-pdf doc-icon"></i>
+                            <div>
+                              <span class="doc-name">{{ req.modalityRequirement?.documentType?.name }}</span>
+                              <span class="doc-meta">
+                                @if (req.documentVersions?.[0]) {
+                                  v{{ req.documentVersions[0].versionNumber }} — {{ req.documentVersions[0].originalFileName }}
+                                }
+                              </span>
+                            </div>
+                          </div>
+                          <div class="doc-config-status">
+                            @if (hasConfigForRequirement(req)) {
+                              <span class="chip chip-ok"><i class="pi pi-check"></i> Configurado</span>
+                            } @else {
+                              <span class="chip chip-warn"><i class="pi pi-times"></i> Sin config</span>
+                            }
+                          </div>
+                          <div class="doc-actions">
+                            <button class="btn btn-sm btn-outline"
+                                    (click)="signSingleRequirement(process.id, req.id)"
+                                    [disabled]="!hasConfigForRequirement(req) || signingReqInProgress() !== null || signingInProgress() !== null">
+                              @if (signingReqInProgress() === req.id) {
+                                <i class="pi pi-spin pi-spinner"></i> Firmando...
+                              } @else {
+                                <i class="pi pi-pencil"></i> Firmar
+                              }
+                            </button>
+                          </div>
+                        </div>
+                      } @else if (req.status === 'FINALIZADO') {
+                        <div class="doc-row signed">
+                          <div class="doc-info">
+                            <i class="pi pi-verified doc-icon signed-icon"></i>
+                            <div>
+                              <span class="doc-name">{{ req.modalityRequirement?.documentType?.name }}</span>
+                              <span class="doc-meta signed-text">Firmado digitalmente</span>
+                            </div>
+                          </div>
+                          <div class="doc-config-status">
+                            <span class="chip chip-signed"><i class="pi pi-check-circle"></i> Firmado</span>
+                          </div>
+                          <div class="doc-actions">
+                            <button class="btn btn-sm btn-ghost danger"
+                                    (click)="unsignRequirement(process.id, req.id, req.modalityRequirement?.documentType?.name)"
+                                    [disabled]="signingReqInProgress() !== null"
+                                    title="Revertir firma">
+                              <i class="pi pi-undo"></i> Revertir
+                            </button>
+                          </div>
+                        </div>
+                      }
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ===== TAB: AUDIT ===== -->
+  @if (activeTab() === 'audit') {
+    <div class="tab-panel fade-in">
+      <div class="panel-toolbar">
+        <div>
+          <h2>Registro de Auditoría</h2>
+          <p class="toolbar-hint">Historial de operaciones de firma, trazabilidad institucional</p>
+        </div>
+        <button class="btn btn-ghost" (click)="loadAuditLogs()">
+          <i class="pi pi-refresh"></i> Actualizar
+        </button>
+      </div>
+
+      @if (auditLogs().length === 0) {
+        <div class="empty">
+          <i class="pi pi-history"></i>
+          <h3>Sin registros</h3>
+          <p>Los eventos de auditoría aparecerán aquí al firmar, revertir o archivar procesos.</p>
+        </div>
+      } @else {
+        <div class="audit-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha/Hora</th>
+                <th>Acción</th>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th>IP</th>
+                <th>Detalles</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (log of auditLogs(); track log.id) {
+                <tr>
+                  <td class="audit-date">{{ log.timestamp | date:'dd/MM/yyyy HH:mm' }}</td>
+                  <td>
+                    <span class="chip chip-role">{{ getActionLabel(log.action) }}</span>
+                  </td>
+                  <td>{{ log.user?.firstName }} {{ log.user?.lastName }}</td>
+                  <td>{{ getRoleLabelForUser(log.userRole) }}</td>
+                  <td class="audit-ip">{{ log.ipAddress || '—' }}</td>
+                  <td class="audit-details">
+                    @if (log.newValue) {
+                      @if (log.newValue.documentType) {
+                        <span>{{ log.newValue.documentType }}</span>
+                      }
+                      @if (log.newValue.signedDocuments !== undefined) {
+                        <span>{{ log.newValue.signedDocuments }} docs firmados</span>
+                      }
+                      @if (log.newValue.archivedCount !== undefined) {
+                        <span>{{ log.newValue.archivedCount }} archivados</span>
+                      }
+                      @if (log.newValue.removedSignatures !== undefined) {
+                        <span>{{ log.newValue.removedSignatures }} firmas revertidas</span>
+                      }
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Audit pagination -->
+        @if (auditPagination().pages > 1) {
+          <div class="pagination">
+            <button class="btn btn-sm btn-ghost" (click)="goToAuditPage(auditPagination().page - 1)"
+                    [disabled]="auditPagination().page <= 1">
+              <i class="pi pi-chevron-left"></i>
+            </button>
+            <span class="pagination-info">
+              Página {{ auditPagination().page }} de {{ auditPagination().pages }}
+              ({{ auditPagination().total }} registros)
+            </span>
+            <button class="btn btn-sm btn-ghost" (click)="goToAuditPage(auditPagination().page + 1)"
+                    [disabled]="auditPagination().page >= auditPagination().pages">
+              <i class="pi pi-chevron-right"></i>
+            </button>
+          </div>
+        }
+      }
+    </div>
+  }
+
+  <!-- ===== MODAL: IMAGE UPLOAD ===== -->
+  @if (showImageModal()) {
+    <div class="modal-backdrop" (click)="closeImageModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-top">
+          <h3>Subir Imagen de Firma</h3>
+          <button class="btn-sm btn-ghost" (click)="closeImageModal()"><i class="pi pi-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label>Usuario firmante</label>
+            <select [(ngModel)]="selectedUserId">
+              <option value="">Seleccionar usuario...</option>
+              @for (user of getUsersWithoutSignature(); track user.id) {
+                <option [value]="user.id">{{ user.firstName }} {{ user.lastName }} ({{ getRoleLabelForUser(user.role) }})</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label>Etiqueta descriptiva</label>
+            <input type="text" [(ngModel)]="imageLabel" placeholder="Ej: Firma Director de Programa" />
+          </div>
+          <div class="field">
+            <label>Archivo de imagen</label>
+            <small>PNG con fondo transparente recomendado</small>
+            <input type="file" accept="image/png,image/jpeg" (change)="onFileSelected($event)" />
+          </div>
+        </div>
+        <div class="modal-bottom">
+          <button class="btn btn-ghost" (click)="closeImageModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveSignatureImage()"
+                  [disabled]="loading() || !selectedUserId || !imageLabel || !selectedFile">
+            @if (loading()) { <i class="pi pi-spin pi-spinner"></i> }
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ===== MODAL: CONFIG (with PDF Preview) ===== -->
+  @if (showConfigModal()) {
+    <div class="modal-backdrop" (click)="closeConfigModal()">
+      <div class="modal modal-lg" (click)="$event.stopPropagation()">
+        <div class="modal-top">
+          <h3>{{ editingConfigId ? 'Editar' : 'Nueva' }} Configuración de Firma</h3>
+          <button class="btn-sm btn-ghost" (click)="closeConfigModal()"><i class="pi pi-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="config-modal-layout">
+            <!-- Left: Form -->
+            <div class="config-form-col">
+              <div class="field-row">
+                <div class="field">
+                  <label>Tipo de Documento</label>
+                  <select [(ngModel)]="configForm.documentTypeId">
+                    <option value="">Seleccionar...</option>
+                    @for (dt of documentTypes(); track dt.id) {
+                      <option [value]="dt.id">{{ dt.name }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Rol del Firmante</label>
+                  <select [(ngModel)]="configForm.signerRole" (ngModelChange)="onRoleChange()">
+                    <option value="">Seleccionar...</option>
+                    @for (role of signerRoles; track role.value) {
+                      <option [value]="role.value">{{ role.label }}</option>
+                    }
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Etiqueta</label>
+                <input type="text" [(ngModel)]="configForm.label" placeholder="Ej: Firma del Asesor" />
+              </div>
+
+              <div class="field">
+                <label>Imagen de Firma</label>
+                <select [(ngModel)]="configForm.signatureImageId">
+                  <option value="">Selección automática por rol</option>
+                  @for (img of signatureImages(); track img.id) {
+                    <option [value]="img.id">{{ img.label }} — {{ img.user?.firstName }} {{ img.user?.lastName }}</option>
+                  }
+                </select>
+              </div>
+
+              <!-- Position presets -->
+              <div class="field">
+                <label>Posición en el PDF</label>
+                <div class="preset-grid">
+                  @for (preset of positionPresets; track preset.label) {
+                    <button class="preset-btn"
+                            [class.selected]="selectedPreset === preset.label && !isCustomPosition"
+                            (click)="selectedPreset = preset.label; onPresetChange()">
+                      <i class="pi pi-map-marker"></i>
+                      <span>{{ preset.label }}</span>
+                      <small>{{ preset.description }}</small>
+                    </button>
+                  }
+                  <button class="preset-btn"
+                          [class.selected]="isCustomPosition"
+                          (click)="selectedPreset = 'custom'; onPresetChange()">
+                    <i class="pi pi-pencil"></i>
+                    <span>Personalizado</span>
+                    <small>Coordenadas manuales</small>
+                  </button>
+                </div>
+              </div>
+
+              @if (isCustomPosition) {
+                <div class="field-row four">
+                  <div class="field">
+                    <label>X</label>
+                    <input type="number" [(ngModel)]="configForm.positionX" />
+                  </div>
+                  <div class="field">
+                    <label>Y</label>
+                    <input type="number" [(ngModel)]="configForm.positionY" />
+                  </div>
+                  <div class="field">
+                    <label>Ancho</label>
+                    <input type="number" [(ngModel)]="configForm.width" />
+                  </div>
+                  <div class="field">
+                    <label>Alto</label>
+                    <input type="number" [(ngModel)]="configForm.height" />
+                  </div>
+                </div>
+              }
+
+              <div class="field">
+                <label>Orden de visualización</label>
+                <input type="number" [(ngModel)]="configForm.displayOrder" min="0" />
+                <small>Menor = se dibuja primero. Use 0, 1, 2... para múltiples firmas.</small>
+              </div>
+            </div>
+
+            <!-- Right: PDF Preview -->
+            <div class="config-preview-col">
+              <label>Previsualización (última página)</label>
+              <div class="pdf-preview-container">
+                <div class="pdf-preview-page">
+                  <!-- Simulated content lines -->
+                  <div class="pdf-preview-lines">
+                    <div class="pdf-line" style="width: 70%"></div>
+                    <div class="pdf-line" style="width: 90%"></div>
+                    <div class="pdf-line" style="width: 60%"></div>
+                    <div class="pdf-line" style="width: 85%"></div>
+                    <div class="pdf-line" style="width: 40%"></div>
+                  </div>
+                  <!-- Signature position marker -->
+                  <div class="pdf-sig-marker"
+                       [style.left]="getPreviewStyle().left"
+                       [style.bottom]="getPreviewStyle().bottom"
+                       [style.width]="getPreviewStyle().width"
+                       [style.height]="getPreviewStyle().height">
+                    <span>{{ configForm.label || 'Firma' }}</span>
+                  </div>
+                  <!-- QR indicator -->
+                  <div class="pdf-qr-indicator">QR</div>
+                </div>
+                <small class="preview-hint">PDF A4 (595 × 842 pts) — escala proporcional</small>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-bottom">
+          <button class="btn btn-ghost" (click)="closeConfigModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="saveConfig()"
+                  [disabled]="loading() || !configForm.documentTypeId || !configForm.signerRole || !configForm.label">
+            @if (loading()) { <i class="pi pi-spin pi-spinner"></i> }
+            {{ editingConfigId ? 'Actualizar' : 'Crear' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

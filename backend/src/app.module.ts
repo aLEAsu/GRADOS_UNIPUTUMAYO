@@ -1,6 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import appConfig from './config/app.config';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
+import appConfig, {
+  jwtConfig,
+  googleOAuthConfig,
+  mailConfig,
+  signaturesConfig,
+  throttleConfig,
+} from './config/app.config';
 import { SharedModule } from './shared/shared.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -19,8 +27,20 @@ import { HealthController } from './health.controller';
     ConfigModule.forRoot({
       envFilePath: process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development',
       isGlobal: true,
-      load: [appConfig],
+      load: [appConfig, jwtConfig, googleOAuthConfig, mailConfig, signaturesConfig, throttleConfig],
     }),
+
+    // Scheduled tasks (session cleanup, etc.)
+    ScheduleModule.forRoot(),
+
+    // Rate limiting
+    ThrottlerModule.forRootAsync({
+      useFactory: () => ([{
+        ttl: parseInt(process.env.THROTTLE_TTL || '60000', 10),
+        limit: parseInt(process.env.THROTTLE_LIMIT || '100', 10),
+      }]),
+    }),
+
     SharedModule,
 
     // Core Feature Modules
@@ -35,7 +55,7 @@ import { HealthController } from './health.controller';
     AuditModule,
     AdminModule,
   ],
-  controllers: [HealthController],  //Controlador de salud para monitoreo del sistema
+  controllers: [HealthController],
   providers: [],
 })
 export class AppModule {}

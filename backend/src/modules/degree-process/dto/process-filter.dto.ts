@@ -1,44 +1,33 @@
 import { IsOptional, IsUUID, IsString, IsEnum } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../../shared/dto/pagination-query.dto';
 import { ProcessStatus } from '../domain/process-state-machine';
 
 /**
  * DTO for filtering degree processes with pagination
- * Extends PaginationQueryDto to inherit page and limit parameters
  */
 export class ProcessFilterDto extends PaginationQueryDto {
-  /**
-   * Filter by process status
-   */
+  @ApiPropertyOptional({ description: 'Filtrar por estado del proceso', enum: ProcessStatus })
   @IsOptional()
   @IsEnum(ProcessStatus)
   status?: ProcessStatus;
 
-  /**
-   * Filter by modality code
-   * (THESIS, INTERNSHIP, RESEARCH_LINE, DIPLOMA)
-   */
+  @ApiPropertyOptional({ description: 'Filtrar por código de modalidad', example: 'THESIS' })
   @IsOptional()
   @IsString()
   modalityCode?: string;
 
-  /**
-   * Filter by student ID
-   */
+  @ApiPropertyOptional({ description: 'Filtrar por ID del estudiante', format: 'uuid' })
   @IsOptional()
   @IsUUID()
   studentId?: string;
 
-  /**
-   * Filter by advisor ID
-   */
+  @ApiPropertyOptional({ description: 'Filtrar por ID del asesor', format: 'uuid' })
   @IsOptional()
   @IsUUID()
   advisorId?: string;
 
-  /**
-   * Free text search for title or student name
-   */
+  @ApiPropertyOptional({ description: 'Búsqueda por título o nombre de estudiante', example: 'microservicios' })
   @IsOptional()
   @IsString()
   search?: string;
