@@ -19,7 +19,7 @@ COPY src ./src
 COPY prisma ./prisma
 
 # Generate Prisma client
-RUN npm run prisma generate --schema=prisma/schema.prisma
+RUN npx run prisma generate --schema=prisma/schema.prisma
 
 
 # Build the application
