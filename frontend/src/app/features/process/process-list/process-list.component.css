@@ -1,6 +1,8 @@
 .process-list-container {
   padding: 2rem;
-  background-color: var(--color-bg);
+  background: linear-gradient(135deg, var(--color-azul) -20%, var(--color-verde) 190%);
+  box-shadow: 0 0 20px rgba(9, 96, 143, 0.9);
+  animation: glowPulse 3s ease-in-out infinite;
   min-height: 100vh;
 }
 
@@ -19,7 +21,7 @@
 .page-title {
   font-size: 1.875rem;
   font-weight: 700;
-  color: var(--color-azul);
+  color: white;
   margin: 0;
 }
 
@@ -129,30 +131,29 @@
 }
 
 .filter-select {
-  padding: 0.625rem 0.875rem;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background-color: var(--color-bg);
-  font-size: 0.875rem;
+  border: none; /* elimina el borde del select */
+  outline: none; /* elimina el contorno azul al hacer foco */
+  background-color: var(--color-bg-secondary);
   color: var(--color-text);
-  cursor: pointer;
+  border-radius: 10px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
   transition: all 0.3s ease;
 }
 
-.filter-select:hover {
-  border-color: var(--color-border-light);
-}
-
+/* Mantiene coherencia visual al hacer hover o focus */
+.filter-select:hover,
 .filter-select:focus {
+  border: none;
   outline: none;
-  border-color: var(--color-azul);
-  box-shadow: 0 0 0 3px rgba(9, 97, 143, 0.2);
+  box-shadow: 0 0 8px rgba(9, 97, 143, 0.3); /* resplandor suave institucional */
+  background-color: var(--color-bg);
 }
 
 /* Table Styles */
 .table-wrapper {
   background-color: var(--color-bg);
-  border-radius: 14px;
+  border-radius: 20px;
   border: 1px solid var(--color-border);
   overflow: hidden;
 }

@@ -1,7 +1,15 @@
+* {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
 .dashboard {
-  max-width: 1200px;
-  margin: 0 auto;
-  font-family: 'Roboto', sans-serif;
+  background: linear-gradient(135deg, var(--color-azul) -20%, var(--color-verde) 190%);
+  padding: 2rem;
+  box-shadow: 0 0 20px rgba(9, 96, 143, 0.9);
+  animation: glowPulse 3s ease-in-out infinite;
 }
 
 .dashboard-header {
@@ -12,14 +20,15 @@
 }
 
 .greeting {
-  font-size: 1.625rem;
+  font-size: 1.7rem;
   font-weight: 700;
-  color: var(--color-azul);
-  margin-bottom: 0.25rem;
+  color: white;
+  margin-bottom: 0.2rem;
 }
 .role-label {
   font-size: 0.9rem;
   color: var(--color-text-secondary);
+  font-style: italic;
 }
 
 .action-btn {
@@ -118,18 +127,16 @@
 }
 
 .stat-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
-  background: var(--color-bg);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  border: 1px solid var(--color-border);
-  transition: box-shadow 0.3s ease;
+  padding: 1.25rem;
+  transition: all 0.3s ease;
 }
-
 .stat-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-color: var(--color-azul);
+  box-shadow: 0 0 20px rgba(0, 136, 255, 0.989);
+  transform: translateY(-2px);
 }
 
 .stat-icon {
@@ -188,7 +195,7 @@
 .section-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--color-azul);
+  color: white;
   margin-bottom: 1rem;
 }
 .section-header .section-title {
@@ -512,18 +519,20 @@
   font-size: 0.85rem;
   font-weight: 500;
 }
-
-.quick-action-card i {
-  font-size: 1.5rem;
-  color: var(--color-azul);
-}
 .quick-action-card:hover {
   border-color: var(--color-azul);
-  background: var(--color-verde-claro);
+  background: linear-gradient(135deg, var(--color-azul) 0%, var(--color-azul-claro) 140%);
   transform: translateY(-2px);
-  box-shadow:
-    0 0 12px var(--color-azul),
-    0 0 24px var(--color-verde);
+  box-shadow: 0 0 12px rgba(30, 136, 229, 0.3);
+  color: white;
+}
+
+.quick-action-card i {
+  color: var(--color-azul);
+  transition: color 0.3s ease;
+}
+
+.quick-action-card:hover i {
   color: white;
 }
 
@@ -557,7 +566,11 @@
     color: var(--color-text);
   }
 
-  .dashboard-header .greeting {
+   .greeting{
+    color: white;
+   }
+   
+  .dashboard-header{
     color: var(--color-azul);
   }
 
@@ -575,7 +588,7 @@
   .process-title,
   .chart-title,
   .status-count {
-    color: var(--color-azul);
+    color: var(--color-text-secondary);
   }
 
   .process-desc,
@@ -607,10 +620,9 @@
   }
   .quick-action-card:hover {
     border-color: var(--color-azul);
-    background: var(--color-verde-oscuro);
+    background: var(--color-azul-claro);
     color: white;
     box-shadow:
-      0 0 12px var(--color-azul),
-      0 0 24px var(--color-verde);
+      0 0 22px var(--color-azul)
   }
 }

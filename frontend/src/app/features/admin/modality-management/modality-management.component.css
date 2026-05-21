@@ -29,6 +29,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--spacing-xl);
+  background: linear-gradient(135deg, var(--color-azul) -20%, var(--color-verde) 190%);
 }
 
 /* Page Header */
@@ -638,7 +639,7 @@
   justify-content: space-between;
   padding: var(--spacing-lg);
   border-bottom: 1px solid var(--color-border);
-}
+}  
 .modal-header h3 {
   font-size: 18px;
   font-weight: 600;

@@ -7,7 +7,7 @@
 
 .auth-brand {
   flex: 1;
-  background: linear-gradient(135deg, var(--color-azul), var(--color-verde));
+  background: linear-gradient(135deg, #1e88e5 -20%, #6aa84f 65%, #a3d977 160%);
   color: white;
   display: flex;
   flex-direction: column;
@@ -53,6 +53,7 @@
   font-weight: 700;
   line-height: 1.2;
   margin-bottom: 0.75rem;
+  color: white;
 }
 
 .brand-subtitle {
@@ -107,7 +108,7 @@
 .form-header h2 {
   font-size: 1.75rem;
   font-weight: 700;
-  color: var(--color-azul);
+  color: white;
   margin-bottom: 0.5rem;
 }
 
@@ -254,7 +255,7 @@
   background-color: var(--color-bg);
   outline: none;
   transition: all 0.3s ease;
-  font-family: inherit;
+  font-family: 'Roboto', sans-serif;
 }
 .input-wrapper input:focus {
   border-color: var(--color-azul);
@@ -286,7 +287,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.8rem 1.5rem;
-  background: linear-gradient(135deg, var(--color-azul), var(--color-verde));
+  background: linear-gradient(135deg, #1e88e5 -20%, #6aa84f 65%, #a3d977 160%);
   color: white;
   border: none;
   border-radius: 10px;
@@ -295,10 +296,11 @@
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 0.25rem;
-  font-family: inherit;
+  font-family: 'Roboto', sans-serif;
+  animation: pulse 1.8s infinite;
 }
 .submit-btn:hover {
-  background: linear-gradient(135deg, var(--color-verde), var(--color-azul));
+  background: linear-gradient(135deg, #6aa84f 0%, #1e88e5 100%);
   box-shadow:
     0 0 12px var(--color-azul),
     0 0 24px var(--color-verde);
@@ -341,21 +343,69 @@
   color: var(--color-verde);
 }
 
+/* Pantallas grandes (≥1024px) */
+.register-brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #1E88E5 0%, #6AA84F 50%, #A3D977 100%);
+  color: #fff;
+  padding: 2rem;
+  text-align: center;
+}
+
+.register-form-section {
+  background-color: #0D1B2A;
+  color: #fff;
+  padding: 2rem;
+}
+
+/* Pantallas medianas (≤1024px) */
 @media (max-width: 1024px) {
-  .auth-brand {
-    display: none;
+  .register-brand {
+    display: none; /* 👈 aquí está el cambio: ocultar como en login */
   }
-  .auth-form-section {
-    background-color: var(--color-bg);
+
+  .register-form-section {
+    width: 100%;
+    background-color: #0D1B2A;
+    color: #fff;
+    padding: 2rem;
   }
 }
-@media (max-width: 640px) {
-  .form-row {
-    grid-template-columns: 1fr;
+
+/* Pantallas pequeñas (≤768px) */
+@media (max-width: 768px) {
+  .auth-brand,
+  .register-brand {
+    display: none; /* oculta panel institucional */
   }
-  .auth-form-section {
-    padding: 1.5rem;
-    background-color: var(--color-bg);
+
+  .auth-form-section,
+  .register-form-section {
+    width: 100%;
+    min-height: 100vh; /* ocupa toda la pantalla */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+  }
+
+  .auth-form-container {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto; /* centra el formulario */
+  }
+
+  .form-row {
+    grid-template-columns: 1fr; /* evita columnas apretadas */
+  }
+
+  .submit-btn {
+    width: 100%;
+    margin-top: 1rem;
   }
 }
 
@@ -367,9 +417,9 @@
   }
 
   .form-header h2 {
-    color: var(--color-azul);
+    color: white;
   }
-  
+
   .form-header p {
     color: var(--color-text-secondary);
   }
