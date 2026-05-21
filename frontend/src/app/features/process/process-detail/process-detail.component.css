@@ -408,48 +408,6 @@
   margin: 0 0 0.75rem 0;
 }
 
-/* Approval Indicators on Requirement Cards */
-.approval-indicators {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.approval-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.approval-academic-ok {
-  background-color: rgba(9, 97, 143, 0.1);
-  color: var(--color-azul);
-  border: 1px solid rgba(9, 97, 143, 0.2);
-}
-
-.approval-admin-ok {
-  background-color: rgba(124, 181, 50, 0.1);
-  color: var(--color-verde);
-  border: 1px solid rgba(124, 181, 50, 0.2);
-}
-
-.approval-revision {
-  background-color: rgba(247, 191, 0, 0.1);
-  color: var(--color-amarillo);
-  border: 1px solid rgba(247, 191, 0, 0.2);
-}
-
-.approval-rejected {
-  background-color: rgba(229, 41, 34, 0.1);
-  color: var(--color-rojo);
-  border: 1px solid rgba(229, 41, 34, 0.2);
-}
-
 /* Document Versions */
 .document-versions {
   margin-top: 0.75rem;
@@ -875,32 +833,6 @@
 .text-muted {
   color: var(--color-text-secondary);
   font-style: italic;
-}
-
-/* Signed Document Download */
-.btn-success {
-  background: linear-gradient(135deg, var(--color-verde), var(--color-verde-oscuro));
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 0.5rem 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  transition: all 0.25s ease-in-out;
-}
-.btn-success:hover {
-  box-shadow: 0 4px 12px rgba(124, 181, 50, 0.3);
-  transform: translateY(-1px);
-}
-
-.signed-download {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px dashed var(--color-border);
 }
 
 /* Action row */

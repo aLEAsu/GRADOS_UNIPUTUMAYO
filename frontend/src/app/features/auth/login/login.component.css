@@ -5,12 +5,7 @@
 
 .auth-brand {
   flex: 1;
-  background: linear-gradient(
-    135deg,
-    var(--color-azul) 0%,
-    var(--color-verde) 50%,
-    var(--color-verde-claro) 100%
-  );
+  background: linear-gradient(135deg, #1e88e5 -20%, #6aa84f 65%, #a3d977 160%);
   color: white;
   display: flex;
   flex-direction: column;
@@ -70,8 +65,13 @@
   font-weight: 700;
   line-height: 1.2;
   margin-bottom: 0.75rem;
-  color: var(--color-azul);
+  color: white;
   font-family: 'Roboto', sans-serif;
+}
+
+.brand-title,
+.form-header h2 {
+  color: #0d1b2a; /* azul oscuro institucional */
 }
 
 .brand-subtitle {
@@ -310,7 +310,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.8rem 1.5rem;
-  background: linear-gradient(135deg, var(--color-azul), var(--color-verde));
+  background: linear-gradient(135deg, #1e88e5 -20%, #6aa84f 65%, #a3d977 160%);
   color: white;
   border: none;
   border-radius: 10px;
@@ -319,11 +319,11 @@
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: 'Roboto', sans-serif;
-  animation: pulse 2s infinite;
+  animation: pulse 1.8s infinite;
 }
 
 .submit-btn:hover {
-  background: linear-gradient(135deg, var(--color-verde), var(--color-azul));
+  background: linear-gradient(135deg, #6aa84f 0%, #1e88e5 100%);
   box-shadow:
     0 0 12px var(--color-azul),
     0 0 24px var(--color-verde);
@@ -331,7 +331,7 @@
 }
 .submit-btn:active {
   transform: translateY(0);
-  background: linear-gradient(135deg, var(--color-verde), var(--color-azul));
+  background: linear-gradient(135deg, #6aa84f 0%, #1e88e5 100%);
 }
 .submit-btn:disabled {
   opacity: 0.7;
@@ -483,15 +483,54 @@
   .brand-footer p {
     color: var(--color-text-secondary);
   }
+
+  .brand-title,
+  .form-header h2 {
+    color: white;
+  }
 }
 
 /* responsive refinado */
 @media (max-width: 1024px) {
   .auth-brand {
-    display: none;
+    display: flex; /* antes estaba en none */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #1e88e5 0%, #6aa84f 50%, #a3d977 100%);
+    color: #fff;
+    padding: 2rem;
+    text-align: center;
   }
+
   .auth-form-section {
-    background-color: white;
+    background-color: #0d1b2a; /* fondo oscuro institucional */
+  }
+}
+
+@media (max-width: 768px) {
+  .auth-brand {
+    display: none; /* oculta el panel institucional */
+  }
+
+  .auth-form-section {
+    width: 100%;
+    background-color: #0d1b2a; /* fondo oscuro institucional */
+    color: #fff;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr; /* evita columnas apretadas */
+  }
+
+  .submit-btn {
+    width: 100%;
+    margin-top: 1rem;
   }
 }
 
