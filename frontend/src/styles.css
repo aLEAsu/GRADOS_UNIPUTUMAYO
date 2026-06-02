@@ -1,37 +1,54 @@
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
+@import 'app/shared/accessibility/wcag-focus-states.css';
+@import 'app/shared/accessibility/wcag-color-corrections.css';
 
 /* ================================
-   Variables de identidad ITP
+   Variables de identidad ITP - MEJORADAS
 ================================ */
 :root {
-  /* Colores institucionales */
+  /* Colores institucionales - Paleta Primaria */
   --color-azul: #09618f; /* Azul corporativo */
+  --color-azul-claro: #2b7db3; /* Azul más suave */
+  --color-azul-muy-claro: #e3f2fd; /* Azul muy claro para backgrounds */
+  
   --color-verde-oscuro: #3f5e26;
   --color-verde: #7cb532;
   --color-verde-claro: #accf80;
+  --color-verde-suave: #b8d973; /* Verde menos saturado */
+  --color-verde-muy-claro: #f1f8e9; /* Verde muy claro para backgrounds */
+  
   --color-amarillo: #f7bf00;
+  --color-amarillo-suave: #ffc107; /* Amarillo menos saturado */
+  
   --color-rojo: #e52922;
+  --color-rojo-suave: #ef5350; /* Rojo menos saturado */
+  --color-rojo-claro: #ffebee; /* Rojo muy claro */
+  
   --color-gris: #585857;
+  --color-gris-claro: #9ca3af;
+  --color-gris-muy-claro: #f3f4f6;
 
-  /* Status Colors */
+  /* Status Colors - Mejorados */
   --color-status-por-cargar: #9ca3af;
-  --color-status-pendiente: var(--color-amarillo);
-  --color-status-en-revision: var(--color-azul);
-  --color-status-en-correccion: #f97316;
-  --color-status-aprobado: var(--color-verde);
-  --color-status-finalizado: var(--color-verde-oscuro);
+  --color-status-pendiente: #ffc107;
+  --color-status-en-revision: #2b7db3;
+  --color-status-en-correccion: #ff9800;
+  --color-status-aprobado: #7cb532;
+  --color-status-finalizado: #3f5e26;
 
   /* Neutral Colors */
   --color-bg: #ffffff;
   --color-bg-secondary: #f9fafb;
-  --color-text: var(--color-gris);
-  --color-text-secondary: #6b7280;
+  --color-bg-tertiary: #f3f4f6;
+  --color-text: #424242;
+  --color-text-secondary: #757575;
+  --color-text-tertiary: #9e9e9e;
   --color-border: #e5e7eb;
   --color-border-light: #f3f4f6;
 
-  /* Shadow */
+  /* Shadow - Mejorados */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);

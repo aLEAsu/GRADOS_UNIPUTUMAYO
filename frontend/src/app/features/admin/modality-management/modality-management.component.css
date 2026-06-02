@@ -29,7 +29,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--spacing-xl);
-  background: linear-gradient(135deg, var(--color-azul) -20%, var(--color-verde) 190%);
+  background: linear-gradient(135deg, #2b7db3 0%, #7cb532 100%);
 }
 
 /* Page Header */

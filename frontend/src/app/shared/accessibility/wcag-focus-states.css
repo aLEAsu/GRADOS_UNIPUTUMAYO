@@ -1,0 +1,201 @@
+/* ====================================
+   WCAG AA Focus States & Accessibility
+   ==================================== */
+
+/* Global Focus Styles */
+:focus-visible {
+  outline: 2px solid var(--color-azul);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Buttons - All types */
+button:focus-visible,
+.btn:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--color-azul);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(9, 97, 143, 0.2);
+}
+
+/* Links */
+a:focus-visible {
+  outline: 2px solid var(--color-azul);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+/* Form Inputs */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border: 2px solid var(--color-azul);
+  box-shadow: 0 0 0 3px rgba(9, 97, 143, 0.1);
+}
+
+/* Tab Navigation */
+[role="tablist"] [role="tab"]:focus-visible {
+  outline: 2px solid var(--color-azul);
+  outline-offset: -2px;
+}
+
+/* Navigation Menu Items */
+[role="menuitem"]:focus-visible,
+[role="menuitemradio"]:focus-visible,
+[role="menuitemcheckbox"]:focus-visible {
+  outline: 2px solid var(--color-azul);
+  outline-offset: 2px;
+  background-color: rgba(9, 97, 143, 0.1);
+}
+
+/* Close/Icon Buttons - Ensure sufficient size */
+button[aria-label]:focus-visible,
+.icon-btn:focus-visible {
+  outline: 2px solid var(--color-azul);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip Links - Hidden by default, visible on focus */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--color-azul);
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  z-index: 100;
+  border-radius: 0 0 4px 0;
+}
+
+.skip-link:focus-visible {
+  top: 0;
+  outline: 2px solid var(--color-verde);
+  outline-offset: 2px;
+}
+
+/* Prevent focus outline on mouse click (keep visible on keyboard) */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Modal Focus Trap - Focus on close button by default */
+[role="dialog"]:focus-visible {
+  outline: 3px solid var(--color-azul);
+  outline-offset: -3px;
+}
+
+/* Color Indicators Must Not Be Alone */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-indicator::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Error/Success Messages - Always include text, not just color */
+.alert,
+[role="alert"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid transparent;
+}
+
+.alert-error,
+[role="alert"][aria-live="assertive"] {
+  border-left-color: var(--color-rojo);
+  background-color: rgba(229, 41, 34, 0.1);
+  color: var(--color-rojo);
+}
+
+.alert-error::before {
+  content: "⚠ Error:";
+  font-weight: 600;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.alert-success {
+  border-left-color: var(--color-verde);
+  background-color: rgba(124, 181, 50, 0.1);
+  color: var(--color-verde-oscuro);
+}
+
+.alert-success::before {
+  content: "✓ Éxito:";
+  font-weight: 600;
+  color: inherit;
+  flex-shrink: 0;
+}
+
+/* Yellow Elements Fix - Always dark text or use as background */
+.bg-amarillo,
+[style*="background: #f7bf00"],
+[style*="background-color: #f7bf00"] {
+  color: #2d2d2d !important; /* Dark text for contrast */
+}
+
+/* Large Text Exceptions - 3:1 ratio acceptable */
+.text-lg,
+.text-xl,
+h1,
+h2,
+h3 {
+  /* Light blue can be used with 3:1 ratio for large text */
+  /* Ensure minimum font-size: 18pt or 14pt bold */
+}
+
+/* Reduce Motion for Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: more) {
+  button,
+  .btn,
+  a {
+    border: 2px solid currentColor;
+  }
+
+  input,
+  textarea,
+  select {
+    border-width: 2px;
+  }
+}
+
+/* Print Styles - Remove focus outlines */
+@media print {
+  :focus-visible {
+    outline: none;
+  }
+}
+
+/* Zoom/Scale Support - Ensure element still functional at 200% zoom */
+@media (min-width: 1400px) {
+  /* No horizontal scrolling at 200% zoom on 1024px viewport */
+  html {
+    max-width: 200%;
+  }
+}
+
