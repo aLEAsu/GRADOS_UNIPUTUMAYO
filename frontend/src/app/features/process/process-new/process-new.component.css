@@ -72,7 +72,7 @@
 }
 
 .step.active .step-number {
-  background: linear-gradient(135deg, var(--color-azul), var(--color-verde));
+  background: linear-gradient(135deg, #2b7db3, #7cb532);
   color: white;
   box-shadow: 0 4px 12px rgba(9, 97, 143, 0.3);
 }
@@ -99,7 +99,7 @@
 }
 
 .step-line.active {
-  background: linear-gradient(90deg, var(--color-azul), var(--color-verde));
+  background: linear-gradient(90deg, #2b7db3, #7cb532);
 }
 
 /* Alerts */

@@ -82,7 +82,7 @@
   width: 72px;
   height: 72px;
   border-radius: 18px;
-  background: linear-gradient(135deg, var(--color-azul), var(--color-verde));
+  background: linear-gradient(135deg, #2b7db3, #7cb532);
   color: white;
   display: flex;
   align-items: center;
@@ -138,7 +138,7 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-azul), var(--color-verde));
+  background: linear-gradient(135deg, #2b7db3, #7cb532);
   color: white;
 }
 .btn-primary:hover:not(:disabled) {
@@ -285,6 +285,57 @@
   .info-grid,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-container {
+    padding: 0.75rem;
+  }
+  
+  .page-title {
+    font-size: 1.25rem;
+  }
+
+  .profile-card-header {
+    padding: 1.25rem;
+    gap: 1rem;
+  }
+
+  .avatar-large {
+    width: 56px;
+    height: 56px;
+    font-size: 1.25rem;
+  }
+
+  .user-name {
+    font-size: 1.125rem;
+  }
+
+  .profile-section {
+    padding: 1.25rem;
+  }
+
+  .section-title {
+    font-size: 0.95rem;
+  }
+
+  .info-grid,
+  .form-grid {
+    gap: 1rem;
+  }
+
+  .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .btn-outline {
+    width: 100%;
   }
 }
 
