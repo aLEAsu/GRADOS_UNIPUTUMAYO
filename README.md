@@ -207,6 +207,9 @@ npm run test:cov        # Con coverage report
 cd backend
 npm run test:e2e
 ```
+## Despliegue Render
+- Frontend: https://grados-uniputumayo-1.onrender.com
+- Backend: https://grados-uniputumayo.onrender.com
 
 ## API Documentation
 
