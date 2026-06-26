@@ -1,3 +1,4 @@
+/* signatures.service.ts */
 import {
   Injectable,
   Logger,
@@ -14,7 +15,15 @@ import * as forge from 'node-forge';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as QRCode from 'qrcode';
-import { ApprovalDecision, ApprovalType, DocumentStatus, ProcessStatus, UserRole, NotificationType } from '@prisma/client';
+import * as crypto from 'crypto';
+import {
+  ApprovalDecision,
+  ApprovalType,
+  DocumentStatus,
+  ProcessStatus,
+  UserRole,
+  NotificationType,
+} from '@prisma/client';
 import {
   CreateSignatureImageDto,
   UpdateSignatureImageDto,
@@ -128,11 +137,7 @@ export class SignaturesService {
   /**
    * Update signature image (replace image or update label)
    */
-  async updateSignatureImage(
-    id: string,
-    dto: UpdateSignatureImageDto,
-    file?: Express.Multer.File,
-  ) {
+  async updateSignatureImage(id: string, dto: UpdateSignatureImageDto, file?: Express.Multer.File) {
     const existing = await this.prisma.signatureImage.findUnique({
       where: { id },
     });
@@ -238,7 +243,9 @@ export class SignaturesService {
   /**
    * Download signature image file
    */
-  async getSignatureImageFile(id: string): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
+  async getSignatureImageFile(
+    id: string,
+  ): Promise<{ buffer: Buffer; fileName: string; mimeType: string }> {
     const image = await this.prisma.signatureImage.findUnique({ where: { id } });
     if (!image) {
       throw new NotFoundException('Imagen de firma no encontrada');
@@ -448,10 +455,7 @@ export class SignaturesService {
     // Validate user
     const user = await this.prisma.user.findUnique({ where: { id: signedByUserId } });
     if (!user) throw new NotFoundException('Usuario no encontrado');
-    if (
-      user.role !== UserRole.ADMIN &&
-      user.role !== UserRole.SUPERADMIN
-    ) {
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPERADMIN) {
       throw new ForbiddenException('Solo ADMIN o SUPERADMIN pueden firmar procesos');
     }
 
@@ -667,9 +671,7 @@ export class SignaturesService {
     signedByUserId: string,
     ipAddress?: string,
   ) {
-    this.logger.log(
-      `Signing single requirement ${requirementInstanceId} in process ${processId}`,
-    );
+    this.logger.log(`Signing single requirement ${requirementInstanceId} in process ${processId}`);
 
     const user = await this.prisma.user.findUnique({ where: { id: signedByUserId } });
     if (!user) throw new NotFoundException('Usuario no encontrado');
@@ -835,7 +837,12 @@ export class SignaturesService {
       return { totalProcesses: 0, signedProcesses: 0, errors: [] };
     }
 
-    const results: { processId: string; success: boolean; error?: string; result?: SignProcessResult }[] = [];
+    const results: {
+      processId: string;
+      success: boolean;
+      error?: string;
+      result?: SignProcessResult;
+    }[] = [];
 
     for (const process of readyProcesses) {
       try {
@@ -854,10 +861,12 @@ export class SignaturesService {
       totalProcesses: readyProcesses.length,
       signedProcesses: results.filter((r) => r.success).length,
       failedProcesses: results.filter((r) => !r.success).length,
-      errors: results.filter((r) => !r.success).map((r) => ({
-        processId: r.processId,
-        error: r.error,
-      })),
+      errors: results
+        .filter((r) => !r.success)
+        .map((r) => ({
+          processId: r.processId,
+          error: r.error,
+        })),
     };
   }
 
@@ -912,135 +921,86 @@ export class SignaturesService {
    * saves to a new file, and returns the path + hash
    */
   private async applyVisualSignaturesToPdf(
-    originalStoragePath: string,
+    storagePath: string,
     signatureConfigs: any[],
     advisor: any,
-    requirementInstanceId?: string,
+    requirementInstanceId: string,
   ): Promise<{ storagePath: string; hash: string }> {
-    // Read original PDF
-    const originalBuffer = await this.storageService.getFile(originalStoragePath);
-
-    // Load PDF with pdf-lib
-    const pdfDoc = await PDFDocument.load(originalBuffer);
-    const pages = pdfDoc.getPages();
-
-    if (pages.length === 0) {
-      throw new BadRequestException('El PDF no tiene páginas');
+    // 1. Obtener el PDF original
+    const originalBuffer = await this.storageService.getFile(storagePath);
+    if (!originalBuffer || originalBuffer.length === 0) {
+      throw new NotFoundException('El documento original no se encontró o está vacío');
     }
 
+    const pdfDoc = await PDFDocument.load(originalBuffer);
+
+    // 2. Determinar pagina objetivo (ultima por defecto)
+    const pages = pdfDoc.getPages();
     const lastPage = pages[pages.length - 1];
+    const {width: pageWidth, height: pageHeight} = lastPage.getSize();
 
-    // Apply each signature config to the last page
+    // 3. Insertar cada firma según su configuración
     for (const config of signatureConfigs) {
-      if (!config.signatureImage) {
-        this.logger.warn(`No signature image for config ${config.id} (role: ${config.signerRole}), skipping visual stamp`);
-        continue;
-      }
-
-      try {
-        // Read the signature image file
-        const imageBuffer = await this.storageService.getFile(config.signatureImage.imagePath);
-
-        // Determine image type and embed
-        const ext = path.extname(config.signatureImage.originalFileName).toLowerCase();
+      try{
+        if (config.signatureImage && config.signatureImage.imagePath) {
+        const imgBuffer: Buffer = await this.storageService.getFile(config.signatureImage.imagePath);
+        
+        // Detectar tipo por extension o por buffer 
+        const ext = path.extname(config.signatureImage.originalFileName || config.signatureImage.imagePath).toLowerCase();
         let embeddedImage;
-        if (ext === '.png') {
-          embeddedImage = await pdfDoc.embedPng(imageBuffer);
-        } else if (ext === '.jpg' || ext === '.jpeg') {
-          embeddedImage = await pdfDoc.embedJpg(imageBuffer);
-        } else {
-          // For webp or other formats, try PNG first
-          try {
-            embeddedImage = await pdfDoc.embedPng(imageBuffer);
-          } catch {
-            embeddedImage = await pdfDoc.embedJpg(imageBuffer);
-          }
+        if(ext === '.png' || ext === '.webp'){
+          embeddedImage = await pdfDoc.embedPng(imgBuffer);
+        }else{
+          //jpg/jpeg
+          embeddedImage = await pdfDoc.embedJpg(imgBuffer);
         }
 
-        // Draw the signature image at the configured position
-        // PDF coordinates: (0,0) is bottom-left
+        const x = config.positionX;
+        const y = config.positionY;
+
         lastPage.drawImage(embeddedImage, {
-          x: config.positionX,
-          y: config.positionY,
-          width: config.width,
-          height: config.height,
+          x,
+          y,
+          width: config.width || 150,
+          height: config.height || 60,
         });
-
-        this.logger.debug(
-          `Applied signature for ${config.signerRole} at (${config.positionX}, ${config.positionY})`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `Failed to apply signature for config ${config.id}: ${error.message}`,
-        );
-        throw new BadRequestException(
-          `Error al aplicar firma visual (${config.label}): ${error.message}`,
-        );
       }
+
+      // Añadir un QR con datos de verificación (solo si config.qr === true o siempre)
+      const qrData = `req:${requirementInstanceId};role:${config.signerRole};label:${config.label}`;
+      const qrBuffer = await QRCode.toBuffer(qrData, { type: 'png', margin: 1, width: 200 });
+      const qrImage = await pdfDoc.embedPng(qrBuffer);
+
+      // Colocar QR a la derecha de la firma si cabe, sino en esquina inferior derecha
+      const qrX = Math.min((config.positionX || 0) + (config.width || 150) + 10, pageWidth - 60);
+      const qrY = Math.max((config.positionY || 0), 10);
+
+      lastPage.drawImage(qrImage, {
+        x: qrX,
+        y: qrY, 
+        width: 50,
+        height: 50,
+      });
+    } catch(err){
+      this.logger.warn(`Error al insertar la firma para la configuracion ${config.id || config.label}: ${err.message}`);
+      // No abortar todo: lanzar para que el caller decida o continuar según política.
+      throw new BadRequestException(`Error al aplicar firma visual: ${err.message}`);
     }
-
-    // Embed QR code for verification on the last page
-    if (requirementInstanceId) {
-      try {
-        const apiUrl = this.configService.get<string>('app.corsOrigin') || 'http://localhost:4200';
-        const verifyUrl = `${apiUrl}/verify/${requirementInstanceId}`;
-        const qrPngBuffer = await QRCode.toBuffer(verifyUrl, {
-          width: 70,
-          margin: 1,
-          errorCorrectionLevel: 'M',
-        });
-        const qrImage = await pdfDoc.embedPng(qrPngBuffer);
-        // Place QR at bottom-right corner of last page
-        const pageWidth = lastPage.getWidth();
-        lastPage.drawImage(qrImage, {
-          x: pageWidth - 85,
-          y: 15,
-          width: 60,
-          height: 60,
-        });
-        // Small verification label below QR
-        lastPage.drawText('Verificar firma', {
-          x: pageWidth - 90,
-          y: 5,
-          size: 6,
-          color: rgb(0.4, 0.4, 0.4),
-        });
-      } catch (qrError) {
-        this.logger.warn(`Could not embed QR code: ${(qrError as any).message}`);
-      }
-    }
-
-    // Save modified PDF
-    const signedPdfBytes = await pdfDoc.save();
-    const signedBuffer = Buffer.from(signedPdfBytes);
-
-    // Compute hash of signed document
-    const crypto = require('crypto');
-    const hash = crypto.createHash('sha256').update(signedBuffer).digest('hex');
-
-    // Save signed PDF to storage
-    const signedFile: Express.Multer.File = {
-      buffer: signedBuffer,
-      originalname: `signed_${path.basename(originalStoragePath)}`,
-      mimetype: 'application/pdf',
-      size: signedBuffer.length,
-    } as Express.Multer.File;
-
-    const uploadResult = await this.storageService.uploadFile(
-      signedFile,
-      'signed-documents',
-    );
-
-    return {
-      storagePath: uploadResult.storagePath,
-      hash,
-    };
   }
 
-  // =============================================
-  // SIGNED DOCUMENT DOWNLOAD
-  // =============================================
+    // 4. Guardar el nuevo PDF
+    const signedPdfBytes = await pdfDoc.save();
+    const newPath = `signed/${requirementInstanceId}/${Date.now()}.pdf`;
+    // asegurarse de que storageService.saveFile acepte buffer 
+    await this.storageService.saveFile(newPath, signedPdfBytes);
 
+    // 5. Calcular hash SHA-256 
+    const hash = crypto.createHash('sha256').update(signedPdfBytes).digest('hex');
+
+    return { storagePath: newPath, hash};
+  }
+
+  // SIGNED DOCUMENT DOWNLOAD
   /**
    * Download a signed document by requirement instance ID
    */
@@ -1130,7 +1090,9 @@ export class SignaturesService {
     if (!documentVersion) throw new NotFoundException('Document version not found');
 
     if (documentVersion.requirementInstanceId !== requirementInstanceId) {
-      throw new BadRequestException('Document version does not belong to this requirement instance');
+      throw new BadRequestException(
+        'Document version does not belong to this requirement instance',
+      );
     }
 
     // Validate approvals
@@ -1244,49 +1206,28 @@ export class SignaturesService {
   /**
    * Verify a digital signature
    */
-  async verifySignature(signatureId: string): Promise<SignatureVerification> {
-    const signature = await this.prisma.digitalSignature.findUnique({
+  async verifySignature(signatureId: string): Promise<SignatureVerification & { reason?: string }> {
+    const sig = await this.prisma.digitalSignature.findUnique({
       where: { id: signatureId },
-      include: { documentVersion: true, signedBy: true },
+      include: { signedBy: { select: { id: true, firstName: true, lastName: true } } },
     });
+    if (!sig) throw new NotFoundException('Firma no encontrada');
 
-    if (!signature) throw new NotFoundException('Signature not found');
+    if (!sig.signedDocumentPath) throw new BadRequestException('No hay documento firmado asociado');
 
-    try {
-      const documentBuffer = await this.storageService.getFile(
-        signature.documentVersion.storagePath,
-      );
+    const buffer: Buffer = await this.storageService.getFile(sig.signedDocumentPath);
+    const currentHash = crypto.createHash('sha256').update(buffer).digest('hex');
 
-      const md = forge.md.sha256.create();
-      md.update(documentBuffer.toString('binary'));
-      const recomputedHash = md.digest().toHex();
-
-      const certificatePath = this.configService.get<string>('signatures.certificatePath');
-      if (!certificatePath || !fs.existsSync(certificatePath)) {
-        throw new Error('Certificate file not found');
-      }
-
-      const certPem = fs.readFileSync(certificatePath, 'utf-8');
-      const cert = forge.pki.certificateFromPem(certPem);
-      const publicKey = cert.publicKey;
-
-      const md2 = forge.md.sha256.create();
-      md2.update(recomputedHash, 'hex' as any);
-      const signatureBytes = Buffer.from(signature.signatureHash, 'base64').toString('binary');
-      const isValid = (publicKey as any).verify(md2.digest().bytes(), signatureBytes);
-
-      return {
-        isValid,
-        details: {
-          signedBy: `${signature.signedBy.firstName} ${signature.signedBy.lastName}`,
-          timestamp: signature.timestamp.toISOString(),
-          documentHash: (signature.metadata as any)?.documentHash || recomputedHash,
-        },
-      };
-    } catch (error) {
-      this.logger.error(`Failed to verify signature: ${(error as any).message}`);
-      throw new BadRequestException(`Failed to verify signature: ${(error as any).message}`);
-    }
+    const isValid = currentHash === sig.signatureHash;
+    return {
+      isValid,
+      details: {
+        signedBy: `${sig.signedBy?.firstName || ''} ${sig.signedBy?.lastName || ''}`.trim(),
+        timestamp: sig.timestamp.toISOString(),
+        documentHash: sig.signatureHash,
+      },
+      reason: isValid ? undefined : 'Hash mismatch: documento modificado o archivo no encontrado',
+    };
   }
 
   /**
@@ -1502,10 +1443,7 @@ export class SignaturesService {
   /**
    * Notify student when their process documents are signed
    */
-  private async notifyStudentProcessSigned(
-    process: any,
-    signedCount: number,
-  ): Promise<void> {
+  private async notifyStudentProcessSigned(process: any, signedCount: number): Promise<void> {
     try {
       const studentId = process.studentId || process.student?.id;
       const studentEmail = process.student?.email;
@@ -1555,13 +1493,15 @@ export class SignaturesService {
           </div>
         `;
 
-        await this.notificationsService.sendEmailNotification(
-          studentEmail,
-          `Documentos Firmados — Proceso de Grado ${modalityName}`,
-          htmlBody,
-        ).catch((err) => {
-          this.logger.warn(`Email notification failed for ${studentEmail}: ${err.message}`);
-        });
+        await this.notificationsService
+          .sendEmailNotification(
+            studentEmail,
+            `Documentos Firmados — Proceso de Grado ${modalityName}`,
+            htmlBody,
+          )
+          .catch((err) => {
+            this.logger.warn(`Email notification failed for ${studentEmail}: ${err.message}`);
+          });
       }
     } catch (error) {
       this.logger.warn(`Failed to notify student: ${(error as any).message}`);

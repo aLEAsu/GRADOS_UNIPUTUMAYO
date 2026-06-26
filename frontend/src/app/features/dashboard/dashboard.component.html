@@ -1,3 +1,4 @@
+/*dashboard.component.html */
 <div class="dashboard">
   <!-- Header section -->
   <div class="dashboard-header">
@@ -159,7 +160,7 @@
                 <div class="bar-item">
                   <div class="bar-label">{{ getModalityLabel(item.modality) }}</div>
                   <div class="bar-track">
-                    <div class="bar-fill" [style.width.%]="(item.count / (stats()!.totalProcesses || 1)) * 100"></div>
+                    <div class="bar-fill" [style.width.%]="getModalityPercentage(item.count)"></div>
                   </div>
                   <div class="bar-value">{{ item.count }}</div>
                 </div>

@@ -54,7 +54,12 @@
   --sh-focus: 0 0 0 3px rgba(43, 125, 179, 0.2);
 
   display: block;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   color: var(--sig-slate-700);
   -webkit-font-smoothing: antialiased;
 }
@@ -67,6 +72,7 @@
   max-width: 1280px;
   margin: 0 auto;
   padding: var(--sp-8);
+  background: linear-gradient(135deg, var(--color-azul) -20%, var(--color-verde) 190%);
 }
 
 /* =====================
@@ -152,7 +158,7 @@
 
 .alert-error {
   background: var(--sig-red-soft);
-  color: var(--sig-red);
+  color: #b91c1c;
   border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
@@ -208,7 +214,10 @@
   font-weight: 500;
   color: var(--sig-slate-500);
   cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+  transition:
+    color 0.2s,
+    border-color 0.2s,
+    background-color 0.2s;
   white-space: nowrap;
 }
 
@@ -331,6 +340,11 @@
   border-color: var(--sig-blue-light);
   box-shadow: var(--sh-md);
   transform: translateY(-1px);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--sig-blue-light);
+  outline-offset: 2px;
 }
 
 .btn-accent {
@@ -493,7 +507,9 @@
   border: 1px solid var(--sig-slate-200);
   border-radius: var(--r-lg);
   overflow: hidden;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
   box-shadow: var(--sh-xs);
 }
 
@@ -635,7 +651,9 @@
   border: 1px solid var(--sig-slate-200);
   border-radius: var(--r-md);
   overflow: hidden;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
   box-shadow: var(--sh-xs);
 }
 
@@ -737,7 +755,9 @@
   font-size: 14px;
   color: var(--sig-slate-700);
   background: var(--sig-white);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
   box-sizing: border-box;
 }
 
@@ -765,7 +785,9 @@
   border: 1px solid var(--sig-slate-200);
   border-radius: var(--r-md);
   overflow: hidden;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .proc-item:hover {
@@ -1010,9 +1032,9 @@
   margin-top: var(--sp-1);
 }
 
-.field input[type="text"],
-.field input[type="number"],
-.field input[type="file"],
+.field input[type='text'],
+.field input[type='number'],
+.field input[type='file'],
 .field select {
   width: 100%;
   padding: var(--sp-2) var(--sp-3);
@@ -1022,7 +1044,9 @@
   font-size: 14px;
   color: var(--sig-slate-700);
   background: var(--sig-white);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
   box-sizing: border-box;
   line-height: 1.5;
 }
@@ -1034,7 +1058,7 @@
   box-shadow: var(--sh-focus);
 }
 
-.field input[type="file"] {
+.field input[type='file'] {
   padding: var(--sp-2);
   font-size: 13px;
 }
@@ -1321,23 +1345,43 @@
    ANIMATIONS
    ===================== */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes modalIn {
-  from { opacity: 0; transform: translateY(12px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes expand {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* =====================
@@ -1475,4 +1519,38 @@
   .field-row.four {
     grid-template-columns: 1fr;
   }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pdf-preview-page {
+    min-height: 320px;
+  }
+
+  .preset-grid {
+    display: flex;
+    overflow-x: auto;
+    gap: var(--sp-2);
+  }
+  .preset-btn {
+    min-width: 140px;
+    flex: 0 0 auto;
+  }
+
+  .modal-body{
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .modal-top{
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .modal-bottom{
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  .pdf-sig-marker span{
+    font-size: 10px;
+  }
 }
+

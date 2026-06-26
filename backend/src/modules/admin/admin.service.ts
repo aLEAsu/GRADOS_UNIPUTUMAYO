@@ -1,3 +1,4 @@
+/* admin.service.ts */
 import {
   Injectable,
   BadRequestException,
@@ -16,47 +17,106 @@ export class AdminService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Get dashboard statistics
+   * Get dashboard statistics with complete process metrics
    */
   async getDashboardStats() {
-    const [totalStudents, processesByStatus, processesByModality, documentsPendingReview] =
-      await Promise.all([
-        this.prisma.user.count({
-          where: { role: UserRole.STUDENT },
-        }),
-        this.prisma.degreeProcess.groupBy({
-          by: ['status'],
-          _count: true,
-        }),
-        this.prisma.degreeProcess.groupBy({
-          by: ['modalityId'],
-          _count: true,
-        }),
-        this.prisma.requirementInstance.count({
-          where: { status: 'EN_REVISION' },
-        }),
-      ]);
-
-    // Get recent activity (last 10 audit events)
-    const recentActivity = await this.prisma.auditEvent.findMany({
-      take: 10,
-      orderBy: { timestamp: 'desc' },
-      include: {
-        user: {
-          select: {
-            firstName: true,
-            lastName: true,
-            email: true,
+    const [
+      totalProcesses,
+      totalStudents,
+      totalAdvisors,
+      processesByStatusRaw,
+      processesByModalityRaw,
+      pendingReviews,
+      recentActivityRaw,
+      modalities,
+    ] = await Promise.all([
+      // Total de procesos activos (excluyendo DRAFT y ARCHIVED)
+      this.prisma.degreeProcess.count({
+        where: {
+          status: { notIn: ['DRAFT', 'ARCHIVED'] },
+        },
+      }),
+      // Total de estudiantes
+      this.prisma.user.count({
+        where: { role: UserRole.STUDENT },
+      }),
+      // Total de asesores
+      this.prisma.user.count({
+        where: { role: UserRole.ADVISOR },
+      }),
+      // Agrupación por estado
+      this.prisma.degreeProcess.groupBy({
+        by: ['status'],
+        _count: true,
+      }),
+      // Agrupación por modalidad
+      this.prisma.degreeProcess.groupBy({
+        by: ['modalityId'],
+        _count: true,
+      }),
+      // Documentos en revisión
+      this.prisma.requirementInstance.count({
+        where: { status: 'EN_REVISION' },
+      }),
+      // Actividad reciente (últimos 10 eventos de auditoría)
+      this.prisma.auditEvent.findMany({
+        take: 10,
+        orderBy: { timestamp: 'desc' },
+        include: {
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
           },
         },
-      },
-    });
+      }),
+      // Obtener todas las modalidades para mapeo
+      this.prisma.degreeModality.findMany({
+        select: { id: true, code: true, name: true },
+      }),
+    ]);
+
+    // Transformar processesByStatus: _count → count
+    const processesByStatus = processesByStatusRaw.map((item) => ({
+      status: item.status,
+      count: item._count,
+    }));
+
+    // Calcular activeProcesses (ACTIVE + IN_REVIEW)
+    const activeProcesses = processesByStatus
+      .filter((item) => item.status === 'ACTIVE' || item.status === 'IN_REVIEW')
+      .reduce((sum, item) => sum + item.count, 0);
+
+    // Calcular completedProcesses
+    const completedProcesses = processesByStatus
+      .filter((item) => item.status === 'COMPLETED')
+      .reduce((sum, item) => sum + item.count, 0);
+
+    // Transformar processesByModality: incluir modalityId → modality code
+    const modalityMap = new Map(modalities.map((m) => [m.id, m.code]));
+    const processesByModality = processesByModalityRaw.map((item) => ({
+      modality: modalityMap.get(item.modalityId) || 'UNKNOWN',
+      count: item._count,
+    }));
+
+    // Transformar recentActivity al formato esperado por frontend
+    const recentActivity = recentActivityRaw.map((item) => ({
+      action: `${item.action} - ${item.resource}`,
+      date: item.timestamp.toISOString(),
+      user: `${item.user?.firstName || ''} ${item.user?.lastName || ''}`.trim(),
+    }));
 
     return {
+      totalProcesses,
+      activeProcesses,
+      completedProcesses,
+      pendingReviews,
       totalStudents,
+      totalAdvisors,
       processesByStatus,
       processesByModality,
-      documentsPendingReview,
       recentActivity,
     };
   }

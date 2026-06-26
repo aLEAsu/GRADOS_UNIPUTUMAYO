@@ -155,7 +155,7 @@
 }
 .stat-icon.green {
   background: var(--color-bg-secondary);
-  color: var(--color-verde);
+  color: var(--color-verde-oscuro);
 }
 .stat-icon.orange {
   background: var(--color-bg-secondary);
@@ -288,11 +288,11 @@
 }
 .status-active {
   background: var(--color-bg-secondary);
-  color: var(--color-verde);
+  color: var(--color-azul);
 }
 .status-review {
   background: var(--color-bg-secondary);
-  color: var(--color-azul);
+  color: var(--color-amarillo);
 }
 .status-approved {
   background: var(--color-bg-secondary);
@@ -300,7 +300,7 @@
 }
 .status-completed {
   background: var(--color-bg-secondary);
-  color: var(--color-verde);
+  color: var(--color-verde-oscuro);
 }
 .status-archived {
   background: var(--color-border-light);
@@ -803,7 +803,7 @@
   .process-title,
   .chart-title,
   .status-count {
-    color: var(--color-text-secondary);
+    color: var(--color-azul);
   }
 
   .process-desc,

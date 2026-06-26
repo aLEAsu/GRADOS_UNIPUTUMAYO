@@ -8,6 +8,7 @@ import { ReviewService } from '../../core/services/review.service';
 import { UserRole } from '../../core/models/user.model';
 import { DashboardStats } from '../../core/models/api-response.model';
 import { DegreeProcess, ProcessStatus } from '../../core/models/degree-process.model';
+import {HttpClient} from "@angular/common/http";
 
 @Component({
   selector: 'app-dashboard',
@@ -32,7 +33,8 @@ export class DashboardComponent implements OnInit {
     private authService: AuthService,
     private adminService: AdminService,
     private processService: DegreeProcessService,
-    private reviewService: ReviewService
+    private reviewService: ReviewService,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
@@ -144,6 +146,11 @@ export class DashboardComponent implements OnInit {
       RESEARCH_LINE: 'Línea de Investigación',
       DIPLOMA: 'Diplomado'
     };
-    return labels[code] || code;
+    return labels[code] || 'Otra modalidad';
+  }
+
+  getModalityPercentage(count: number): number {
+    const total = this.stats()?.totalProcesses || 1; // Establece un valor predeterminado para evitar división por cero
+    return (count / total) * 100;
   }
 }
