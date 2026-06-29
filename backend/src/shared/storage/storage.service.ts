@@ -24,10 +24,7 @@ export class StorageService {
    * Upload a file to storage with UUID-based naming and SHA-256 hash generation
    * Files are organized by year/month subdirectories
    */
-  async uploadFile(
-    file: Express.Multer.File,
-    subPath: string,
-  ): Promise<FileUploadResult> {
+  async uploadFile(file: Express.Multer.File, subPath: string): Promise<FileUploadResult> {
     try {
       if (!file) {
         throw new Error('No file provided');
@@ -58,9 +55,7 @@ export class StorageService {
       // Build storage path (relative path for retrieval)
       const storagePath = path.join(year, month, subPath, fileName).replace(/\\/g, '/');
 
-      this.logger.log(
-        `File uploaded successfully: ${storagePath} (${file.size} bytes)`,
-      );
+      this.logger.log(`File uploaded successfully: ${storagePath} (${file.size} bytes)`);
 
       return {
         storagePath,
@@ -133,6 +128,24 @@ export class StorageService {
     } catch (error) {
       this.logger.error(`Failed to verify file hash: ${error.message}`);
       return false;
+    }
+  }
+
+  /* Guardar un raw Buffer (e.g., generar PDF) en el storagePath especificado, creando directorios si es necesario */
+  async saveFile(storagePath: string, buffer: Buffer): Promise<void> {
+    try {
+      const filePath = path.join(this.uploadDir, storagePath);
+
+      // Crear directorio si no existe
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+
+      // Escribir el archivo
+      await fs.writeFile(filePath, buffer);
+
+      this.logger.log(`File saved successfully: ${storagePath}`);
+    } catch (error) {
+      this.logger.error(`Failed to save file ${storagePath}: ${error.message}`);
+      throw error;
     }
   }
 }

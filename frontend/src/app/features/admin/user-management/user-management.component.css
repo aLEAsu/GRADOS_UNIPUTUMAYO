@@ -9,7 +9,7 @@
   --color-warning: var(--color-amarillo);
   --color-warning-light: var(--color-amarillo-claro);
   --color-danger: var(--color-rojo);
-  --color-danger-light: rgba(229, 41, 34, 0.8);
+  --color-danger-light: var(--color-rojo-claro);
   --color-text-primary: var(--color-text);
   --color-text-secondary: var(--color-text-secondary);
   --color-text-muted: var(--color-text-secondary);
@@ -29,7 +29,7 @@
   max-width: 1400px;
   margin: 0 auto;
   padding: var(--spacing-xl);
-  background: linear-gradient(135deg, #2b7db3 0%, #7cb532 100%);
+  background: linear-gradient(135deg, var(--color-azul) -20%, var(--color-verde) 190%);
 }
 
 /* Page Header */
