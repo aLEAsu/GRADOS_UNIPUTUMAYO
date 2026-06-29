@@ -103,7 +103,7 @@ export class AdminService {
 
     // Transformar recentActivity al formato esperado por frontend
     const recentActivity = recentActivityRaw.map((item) => ({
-      action: `${item.action} - ${item.resource}`,
+      action: `${item.action} - ${item.entity}`,
       date: item.timestamp.toISOString(),
       user: `${item.user?.firstName || ''} ${item.user?.lastName || ''}`.trim(),
     }));
