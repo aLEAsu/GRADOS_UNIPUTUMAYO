@@ -53,10 +53,7 @@ export class AdminController {
     description:
       'Retrieve dashboard statistics including student counts, process statuses, and recent activity.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Dashboard statistics retrieved successfully',
-  })
+  @ApiResponse({ status: 200, description: 'Dashboard statistics retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async getDashboardStats() {
@@ -72,10 +69,7 @@ export class AdminController {
     summary: 'Get all degree modalities',
     description: 'Retrieve all degree modalities with their requirements.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Modalities retrieved successfully',
-  })
+  @ApiResponse({ status: 200, description: 'Modalities retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async getModalities() {
@@ -90,14 +84,8 @@ export class AdminController {
     description: 'Create a new degree modality (e.g., Thesis, Internship).',
   })
   @ApiBody({ type: CreateModalityDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Modality created successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid input or modality already exists',
-  })
+  @ApiResponse({ status: 201, description: 'Modality created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input or modality already exists' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async createModality(@Body() dto: CreateModalityDto) {
@@ -112,10 +100,7 @@ export class AdminController {
     description: 'Update modality details.',
   })
   @ApiBody({ type: UpdateModalityDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Modality updated successfully',
-  })
+  @ApiResponse({ status: 200, description: 'Modality updated successfully' })
   @ApiResponse({ status: 404, description: 'Modality not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
@@ -134,14 +119,8 @@ export class AdminController {
     description: 'Add a document type as a requirement for a modality.',
   })
   @ApiBody({ type: AddRequirementDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Requirement added successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid input or requirement already exists',
-  })
+  @ApiResponse({ status: 201, description: 'Requirement added successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input or requirement already exists' })
   @ApiResponse({ status: 404, description: 'Modality or document type not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
@@ -159,14 +138,8 @@ export class AdminController {
     summary: 'Remove document type requirement from modality',
     description: 'Remove a document type requirement from a modality.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Requirement removed successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Requirement does not belong to this modality',
-  })
+  @ApiResponse({ status: 200, description: 'Requirement removed successfully' })
+  @ApiResponse({ status: 400, description: 'Requirement does not belong to this modality' })
   @ApiResponse({ status: 404, description: 'Requirement not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
@@ -186,10 +159,7 @@ export class AdminController {
     summary: 'Get all document types',
     description: 'Retrieve all document types in the system.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Document types retrieved successfully',
-  })
+  @ApiResponse({ status: 200, description: 'Document types retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async getDocumentTypes() {
@@ -204,14 +174,8 @@ export class AdminController {
     description: 'Create a new document type for degree process requirements.',
   })
   @ApiBody({ type: CreateDocumentTypeDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Document type created successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid input or document type already exists',
-  })
+  @ApiResponse({ status: 201, description: 'Document type created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input or document type already exists' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async createDocumentType(@Body() dto: CreateDocumentTypeDto) {
@@ -226,10 +190,7 @@ export class AdminController {
     description: 'Update document type details.',
   })
   @ApiBody({ type: UpdateDocumentTypeDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Document type updated successfully',
-  })
+  @ApiResponse({ status: 200, description: 'Document type updated successfully' })
   @ApiResponse({ status: 404, description: 'Document type not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
@@ -255,10 +216,7 @@ export class AdminController {
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({
-    status: 200,
-    description: 'Users retrieved successfully',
-  })
+  @ApiResponse({ status: 200, description: 'Users retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async getUsers(@Query() filters: UserFilterDto) {
@@ -276,21 +234,12 @@ export class AdminController {
     schema: {
       type: 'object',
       properties: {
-        role: {
-          type: 'string',
-          enum: Object.values(UserRole),
-        },
+        role: { type: 'string', enum: Object.values(UserRole) },
       },
     },
   })
-  @ApiResponse({
-    status: 200,
-    description: 'User role updated successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Cannot downgrade superadmin user',
-  })
+  @ApiResponse({ status: 200, description: 'User role updated successfully' })
+  @ApiResponse({ status: 400, description: 'Cannot downgrade superadmin user' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
@@ -308,14 +257,8 @@ export class AdminController {
     summary: 'Toggle user active status',
     description: 'Activate or deactivate a user account.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'User active status toggled successfully',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Cannot deactivate a superadmin user',
-  })
+  @ApiResponse({ status: 200, description: 'User active status toggled successfully' })
+  @ApiResponse({ status: 400, description: 'Cannot deactivate a superadmin user' })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
@@ -325,15 +268,13 @@ export class AdminController {
 
   // System Health
 
-  // Endpoint público simple
   @Public()
   @Get('health')
   @HttpCode(HttpStatus.OK)
   getHealth() {
     return { status: 'ok', timestamp: new Date().toISOString() };
   }
-  
-  // Endpoint protegido con detalles del sistema
+
   @Get('health/system')
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.OK)
@@ -347,3 +288,4 @@ export class AdminController {
   async getSystemHealth() {
     return this.adminService.getSystemHealth();
   }
+}  
