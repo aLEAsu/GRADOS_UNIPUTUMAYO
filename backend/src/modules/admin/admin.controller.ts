@@ -325,6 +325,9 @@ export class AdminController {
   // System Health
 
   @Get('health')
+  @UseGuards() // sin guards
+  getHealth() {
+    return { status: 'ok' };}
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
