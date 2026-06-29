@@ -34,7 +34,7 @@ async function bootstrap(): Promise<void> {
   });
 
   // Global prefix
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', { exclude: ['health'] });
 
   // Global validation pipe with UUID support
   app.useGlobalPipes(
