@@ -325,31 +325,25 @@ export class AdminController {
 
   // System Health
 
+  // Endpoint público simple
   @Public()
   @Get('health')
+  @HttpCode(HttpStatus.OK)
   getHealth() {
     return { status: 'ok', timestamp: new Date().toISOString() };
   }
+  
+  // Endpoint protegido con detalles del sistema
+  @Get('health/system')
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get system health status',
     description: 'Check system health including database connectivity.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'System health retrieved successfully',
-    schema: {
-      example: {
-        status: 'healthy',
-        database: 'connected',
-        timestamp: '2026-03-18T10:30:00Z',
-      },
-    },
-  })
+  @ApiResponse({ status: 200, description: 'System health retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async getSystemHealth() {
     return this.adminService.getSystemHealth();
   }
-}
