@@ -324,10 +324,11 @@ export class AdminController {
 
   // System Health
 
+  @Public()
   @Get('health')
-  @UseGuards() // sin guards
   getHealth() {
-    return { status: 'ok' };}
+    return { status: 'ok', timestamp: new Date().toISOString() };
+  }
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
