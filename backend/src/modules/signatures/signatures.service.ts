@@ -992,7 +992,7 @@ export class SignaturesService {
     const signedPdfBytes = await pdfDoc.save();
     const newPath = `signed/${requirementInstanceId}/${Date.now()}.pdf`;
     // asegurarse de que storageService.saveFile acepte buffer 
-    await this.storageService.saveFile(newPath, signedPdfBytes);
+    await this.storageService.saveFile(newPath, Buffer.from(signedPdfBytes));
 
     // 5. Calcular hash SHA-256 
     const hash = crypto.createHash('sha256').update(signedPdfBytes).digest('hex');
