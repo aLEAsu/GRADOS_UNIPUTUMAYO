@@ -34,6 +34,7 @@ import { UserFilterDto } from './dto/user-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles, UserRole } from '../../shared/decorators/roles.decorator';
+import { Public } from '../../shared/decorators/public.decorator';
 
 @ApiTags('Admin')
 @Controller('admin')
