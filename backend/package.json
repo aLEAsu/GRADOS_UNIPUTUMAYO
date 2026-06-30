@@ -20,7 +20,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "copy /Y .env.development .env && prisma migrate dev",
     "prisma:migrate:prod": "copy /Y .env.production .env && prisma migrate deploy",
-    "prisma:seed": "ts-node prisma/seed.ts",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:seed": "node prisma/seed.js",
     "prisma:studio": "prisma studio",
     "setup:dev": "npm run prisma:generate && npm run prisma:migrate:dev && npm run prisma:seed",
     "setup:prod": "npm run prisma:generate && npm run prisma:migrate:prod && npm run prisma:seed"
