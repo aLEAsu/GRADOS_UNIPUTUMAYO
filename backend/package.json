@@ -26,8 +26,8 @@
     "setup:prod": "npm run prisma:generate && npm run prisma:migrate:prod && npm run prisma:seed"
   },
   "prisma": {
-    "seed": "node prisma/seed.js"
-  },
+  "seed": "node -e \"const{PrismaClient,UserRole,AcademicStatus}=require('@prisma/client');const bcrypt=require('bcrypt');\" || npx ts-node --project tsconfig.json prisma/seed.ts"
+  }
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
     "@nestjs/common": "^11.1.17",
