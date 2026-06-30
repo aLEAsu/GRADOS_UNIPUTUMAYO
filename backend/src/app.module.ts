@@ -21,6 +21,7 @@ import { IntegrationModule } from './modules/integration/integration.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { HealthController } from './health.controller';
+import { SeedController } from './seed.controller'; // ← agregar
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { HealthController } from './health.controller';
       isGlobal: true,
       load: [appConfig, jwtConfig, googleOAuthConfig, mailConfig, signaturesConfig, throttleConfig],
     }),
-
+  
     // Scheduled tasks (session cleanup, etc.)
     ScheduleModule.forRoot(),
 
@@ -55,7 +56,7 @@ import { HealthController } from './health.controller';
     AuditModule,
     AdminModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, SeedController], // ← agregar SeedController
   providers: [],
 })
 export class AppModule {}
