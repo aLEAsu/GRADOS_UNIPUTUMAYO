@@ -26,7 +26,7 @@
     "setup:prod": "npm run prisma:generate && npm run prisma:migrate:prod && npm run prisma:seed"
   },
   "prisma": {
-  "seed": "ts-node --project tsconfig.json prisma/seed.ts"
+  "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
