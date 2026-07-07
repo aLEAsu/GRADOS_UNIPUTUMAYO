@@ -109,7 +109,12 @@ export class DashboardComponent implements OnInit {
     return labels[this.userRole() || ''] || '';
   }
 
+  private normalizeStatus(status?: string): string {
+    return status?.toString().trim().toUpperCase() || '';
+  }
+
   getStatusLabel(status: string): string {
+    const normalized = this.normalizeStatus(status);
     const labels: Record<string, string> = {
       DRAFT: 'Borrador',
       ACTIVE: 'Activo',
@@ -118,10 +123,11 @@ export class DashboardComponent implements OnInit {
       COMPLETED: 'Completado',
       ARCHIVED: 'Archivado'
     };
-    return labels[status] || status;
+    return labels[normalized] || 'Estado desconocido';
   }
 
   getStatusClass(status: string): string {
+    const normalized = this.normalizeStatus(status);
     const classes: Record<string, string> = {
       DRAFT: 'status-draft',
       ACTIVE: 'status-active',
@@ -130,12 +136,15 @@ export class DashboardComponent implements OnInit {
       COMPLETED: 'status-completed',
       ARCHIVED: 'status-archived'
     };
-    return classes[status] || '';
+    return classes[normalized] || 'status-unknown';
   }
 
   getActiveCount(): number {
     return this.myProcesses().filter(
-      p => p.status === ProcessStatus.ACTIVE || p.status === ProcessStatus.IN_REVIEW
+      p => {
+        const status = this.normalizeStatus(p.status);
+        return status === ProcessStatus.ACTIVE || status === ProcessStatus.IN_REVIEW;
+      }
     ).length;
   }
 

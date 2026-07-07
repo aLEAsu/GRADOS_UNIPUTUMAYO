@@ -60,15 +60,44 @@ export class DegreeProcessService {
           },
           orderBy: { displayOrder: 'asc' },
         },
+        resources: {
+          select: {
+            id: true,
+            label: true,
+            description: true,
+            originalFileName: true,
+            mimeType: true,
+            fileSizeByte: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
     // Map modalityRequirements → requirements for frontend compatibility
-    return modalities.map(({ modalityRequirements, ...rest }) => ({
-      ...rest,
-      requirements: modalityRequirements,
-    }));
+    return modalities.map(({ modalityRequirements, resources, ...rest }) => {
+      const requirementLabels = new Set(
+        modalityRequirements
+          .map((req) => req.documentType?.name?.trim())
+          .filter((label): label is string => !!label),
+      );
+
+      const filteredResources = Array.from(
+        new Map(
+          resources
+            .filter((resource) => requirementLabels.has(resource.label))
+            .map((resource) => [resource.label, resource]),
+        ).values(),
+      );
+
+      return {
+        ...rest,
+        requirements: modalityRequirements,
+        resources: filteredResources,
+      };
+    });
   }
 
   /**
@@ -672,6 +701,58 @@ export class DegreeProcessService {
       `Process status updated: ${processId} → ${updateStatusDto.status}`,
     );
     return updated;
+  }
+
+  /**
+   * Finalize a degree process by setting its status to COMPLETED.
+   * Only for administrator action.
+   */
+  async adminFinalizeProcess(processId: string) {
+    const process = await this.prisma.degreeProcess.findUnique({
+      where: { id: processId },
+    });
+
+    if (!process) {
+      throw new NotFoundException(`Process with ID ${processId} not found`);
+    }
+
+    if (process.status === ProcessStatus.COMPLETED) {
+      return process;
+    }
+
+    const updated = await this.prisma.degreeProcess.update({
+      where: { id: processId },
+      data: { status: ProcessStatus.COMPLETED },
+      include: {
+        student: { select: { id: true, email: true, firstName: true, lastName: true } },
+        modality: { select: { id: true, code: true, name: true } },
+        advisor: { select: { id: true, email: true, firstName: true, lastName: true } },
+      },
+    });
+
+    this.logger.log(`Process finalized: ${processId}`);
+    return updated;
+  }
+
+  /**
+   * Permanently delete a degree process and related dataset.
+   * Only for administrator action.
+   */
+  async adminDeleteProcess(processId: string) {
+    const process = await this.prisma.degreeProcess.findUnique({
+      where: { id: processId },
+    });
+
+    if (!process) {
+      throw new NotFoundException(`Process with ID ${processId} not found`);
+    }
+
+    await this.prisma.degreeProcess.delete({
+      where: { id: processId },
+    });
+
+    this.logger.log(`Process deleted: ${processId}`);
+    return { message: `Process ${processId} deleted successfully` };
   }
 
   /**

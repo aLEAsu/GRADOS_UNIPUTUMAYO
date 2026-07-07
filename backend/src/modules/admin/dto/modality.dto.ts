@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { IsString, IsOptional, IsBoolean, IsInt, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -38,19 +39,69 @@ export class UpdateModalityDto {
 }
 
 export class AddRequirementDto {
-  @ApiProperty({ description: 'ID del tipo de documento requerido', example: '550e8400-e29b-41d4-a716-446655440000' })
+  @ApiPropertyOptional({
+    description: 'ID del tipo de documento requerido. Si no se proporciona, se puede crear un tipo nuevo con documentTypeName.',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsOptional()
   @IsString()
-  documentTypeId: string;
+  documentTypeId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nombre de un nuevo tipo de documento a crear si no se selecciona uno existente.',
+    example: 'Carta de presentación',
+  })
+  @IsOptional()
+  @IsString()
+  documentTypeName?: string;
 
   @ApiPropertyOptional({ description: 'Si el requisito es obligatorio', default: true })
   @IsOptional()
   @IsBoolean()
+  @Type(() => Boolean)
   isRequired?: boolean;
 
   @ApiProperty({ description: 'Orden de visualización', example: 1, minimum: 1 })
   @IsInt()
+  @Type(() => Number)
   @Min(1)
   displayOrder: number;
+
+  @ApiPropertyOptional({ description: 'Instrucciones para el estudiante', example: 'Subir en formato PDF, máximo 20 páginas' })
+  @IsOptional()
+  @IsString()
+  instructions?: string;
+}
+
+export class UpdateRequirementDto {
+  @ApiPropertyOptional({
+    description: 'ID del tipo de documento requerido. Si no se proporciona, se puede crear un tipo nuevo con documentTypeName.',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsOptional()
+  @IsString()
+  documentTypeId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Nombre de un nuevo tipo de documento a crear si no se selecciona uno existente.',
+    example: 'Carta de presentación',
+  })
+  @IsOptional()
+  @IsString()
+  documentTypeName?: string;
+
+  @ApiPropertyOptional({ description: 'Si el requisito es obligatorio', default: true })
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  isRequired?: boolean;
+
+  @ApiPropertyOptional({ description: 'Orden de visualización', example: 1, minimum: 1 })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  @Min(1)
+  displayOrder?: number;
 
   @ApiPropertyOptional({ description: 'Instrucciones para el estudiante', example: 'Subir en formato PDF, máximo 20 páginas' })
   @IsOptional()

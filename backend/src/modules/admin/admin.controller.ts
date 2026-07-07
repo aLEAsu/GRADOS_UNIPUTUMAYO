@@ -11,6 +11,9 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  UseInterceptors,
+  UploadedFile,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,22 +22,30 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiQuery,
+  ApiConsumes,
+  ApiParam,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { AdminService } from './admin.service';
 import {
   CreateModalityDto,
   UpdateModalityDto,
   AddRequirementDto,
+  UpdateRequirementDto,
 } from './dto/modality.dto';
 import {
   CreateDocumentTypeDto,
   UpdateDocumentTypeDto,
 } from './dto/document-type.dto';
+import { CreateModalityResourceDto } from './dto/modality-resource.dto';
 import { UserFilterDto } from './dto/user-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import { Roles, UserRole } from '../../shared/decorators/roles.decorator';
+import { CurrentUser, JwtPayload } from '../../shared/decorators/current-user.decorator';
 import { Public } from '../../shared/decorators/public.decorator';
+import { FileValidationPipe } from '../documents/pipes/file-validation.pipe';
 
 @ApiTags('Admin')
 @Controller('admin')
@@ -113,12 +124,28 @@ export class AdminController {
 
   @Post('modalities/:id/requirements')
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @UseInterceptors(FileInterceptor('file'))
   @HttpCode(HttpStatus.CREATED)
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Add document type requirement to modality',
-    description: 'Add a document type as a requirement for a modality.',
+    description:
+      'Add a document type as a requirement for a modality, optionally uploading a PDF or Word file for students.',
   })
-  @ApiBody({ type: AddRequirementDto })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        documentTypeId: { type: 'string' },
+        documentTypeName: { type: 'string' },
+        isRequired: { type: 'boolean' },
+        displayOrder: { type: 'number', minimum: 1 },
+        instructions: { type: 'string' },
+        file: { type: 'string', format: 'binary', description: 'Optional PDF or Word file for this requirement' },
+      },
+      required: ['displayOrder'],
+    },
+  })
   @ApiResponse({ status: 201, description: 'Requirement added successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input or requirement already exists' })
   @ApiResponse({ status: 404, description: 'Modality or document type not found' })
@@ -126,9 +153,48 @@ export class AdminController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async addRequirementToModality(
     @Param('id') modalityId: string,
+    @UploadedFile() file: Express.Multer.File,
     @Body() dto: AddRequirementDto,
+    @CurrentUser() user: JwtPayload,
   ) {
-    return this.adminService.addRequirementToModality(modalityId, dto);
+    return this.adminService.addRequirementToModality(modalityId, dto, user.sub, file);
+  }
+
+  @Patch('modalities/:id/requirements/:reqId')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Update a modality requirement',
+    description:
+      'Update a document requirement for a modality, including optional file replacement, order, and instructions.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        documentTypeId: { type: 'string' },
+        isRequired: { type: 'boolean' },
+        displayOrder: { type: 'number', minimum: 1 },
+        instructions: { type: 'string' },
+        file: { type: 'string', format: 'binary', description: 'Optional replacement PDF or Word file for this requirement' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Requirement updated successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid input or requirement already exists' })
+  @ApiResponse({ status: 404, description: 'Modality or requirement not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async updateRequirement(
+    @Param('id') modalityId: string,
+    @Param('reqId') requirementId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: UpdateRequirementDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.adminService.updateRequirement(modalityId, requirementId, dto, user.sub, file);
   }
 
   @Delete('modalities/:id/requirements/:reqId')
@@ -148,6 +214,96 @@ export class AdminController {
     @Param('reqId') requirementId: string,
   ) {
     return this.adminService.removeRequirementFromModality(modalityId, requirementId);
+  }
+
+  @Post('modalities/:id/resources')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.CREATED)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Upload a modality resource file',
+    description:
+      'Upload an optional PDF or Word file for a degree modality so students can download it.',
+  })
+  @ApiParam({ name: 'id', description: 'Modality ID', type: 'string' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Document file to upload',
+        },
+        label: {
+          type: 'string',
+          description: 'Label for the modality resource',
+          example: 'Acta de inicio de pasantía',
+        },
+        description: {
+          type: 'string',
+          description: 'Optional description for the resource',
+        },
+      },
+      required: ['file', 'label'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Modality resource uploaded successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid file or input' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async uploadModalityResource(
+    @Param('id') modalityId: string,
+    @UploadedFile(FileValidationPipe) file: Express.Multer.File,
+    @Body() dto: CreateModalityResourceDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.adminService.uploadModalityResource(
+      modalityId,
+      dto,
+      file,
+      user.sub,
+    );
+  }
+
+  @Get('modalities/:id/resources')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get modality resource list',
+    description: 'Retrieve all optional resource files uploaded for a modality.',
+  })
+  @ApiParam({ name: 'id', description: 'Modality ID', type: 'string' })
+  @ApiResponse({ status: 200, description: 'Modality resources retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getModalityResources(@Param('id') modalityId: string) {
+    return this.adminService.getModalityResources(modalityId);
+  }
+
+  @Get('modalities/:id/resources/:resourceId/download')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN, UserRole.STUDENT, UserRole.ADVISOR, UserRole.SECRETARY)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Download a modality resource file',
+    description: 'Download an optional file attached to a modality.',
+  })
+  @ApiParam({ name: 'id', description: 'Modality ID', type: 'string' })
+  @ApiParam({ name: 'resourceId', description: 'Resource ID', type: 'string' })
+  @ApiResponse({ status: 200, description: 'File downloaded successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Resource not found' })
+  async downloadModalityResource(
+    @Param('id') modalityId: string,
+    @Param('resourceId') resourceId: string,
+    @Res() res: Response,
+  ) {
+    const file = await this.adminService.downloadModalityResource(resourceId, modalityId);
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    res.send(file.buffer);
   }
 
   // Document Types

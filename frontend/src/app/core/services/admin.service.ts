@@ -74,13 +74,12 @@ export class AdminService {
   }
 
   // Modality Requirements
-  addRequirementToModality(modalityId: string, data: {
-    documentTypeId: string;
-    isRequired: boolean;
-    displayOrder: number;
-    instructions?: string;
-  }): Observable<any> {
+  addRequirementToModality(modalityId: string, data: FormData): Observable<any> {
     return this.http.post(`${this.apiUrl}/modalities/${modalityId}/requirements`, data);
+  }
+
+  updateRequirement(modalityId: string, requirementId: string, data: FormData): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/modalities/${modalityId}/requirements/${requirementId}`, data);
   }
 
   removeRequirementFromModality(modalityId: string, requirementId: string): Observable<void> {

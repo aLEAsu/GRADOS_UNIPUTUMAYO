@@ -206,29 +206,44 @@
                           <span>El proceso debe estar activo para enviar documentos a revisión. El estudiante debe activar el proceso primero.</span>
                         </div>
                       }
-                    } @else if (req.status === 'POR_CARGAR') {
+                    }
+
+                    @if (shouldShowUploadSection(req)) {
                       <div class="upload-section">
-                        <p class="upload-instruction">Este documento aún no ha sido cargado</p>
-                        @if (canUploadDocuments()) {
-                          <div class="upload-area">
-                            <input
-                              type="file"
-                              #fileInput
-                              (change)="onFileSelected($event, req.id)"
-                              [disabled]="fileUploadInProgress()"
-                              class="file-input"
-                              accept="application/pdf,.pdf"
-                            />
-                            <label class="upload-label" (click)="fileInput.click()">
-                              @if (fileUploadInProgress()) {
-                                <i class="pi pi-spin pi-spinner"></i>
-                                <span>Cargando...</span>
-                              } @else {
-                                <i class="pi pi-cloud-upload"></i>
-                                <span>Haz clic para cargar archivo</span>
-                              }
-                            </label>
-                          </div>
+                        <p class="upload-instruction">
+                          @if (req.documentVersions && req.documentVersions.length > 0) {
+                            Este documento ya tiene versiones cargadas. Puedes subir una nueva versión si lo deseas.
+                          } @else {
+                            Este documento aún no ha sido cargado.
+                          }
+                        </p>
+                        <div class="upload-area">
+                          <input
+                            #fileInput
+                            (change)="onFileSelected($event, req.id)"
+                            [disabled]="fileUploadInProgress()"
+                            class="file-input"
+                            [attr.accept]="getAcceptedMimeTypes(req)"
+                          />
+                          <label class="upload-label" (click)="fileInput.click()">
+                            @if (fileUploadInProgress()) {
+                              <i class="pi pi-spin pi-spinner"></i>
+                              <span>Cargando...</span>
+                            } @else {
+                              <i class="pi pi-cloud-upload"></i>
+                              <span>Haz clic para cargar archivo</span>
+                            }
+                          </label>
+                        </div>
+                        @if (uploadErrorMessages()[req.id]) {
+                          <span class="upload-error">{{ uploadErrorMessages()[req.id] }}</span>
+                        }
+                      </div>
+                    } @else if (!(req.documentVersions && req.documentVersions.length > 0)) {
+                      <div class="upload-section">
+                        <p class="upload-instruction">Este documento está pendiente y todavía no se ha cargado.</p>
+                        @if (!canUploadDocuments()) {
+                          <span class="upload-note">Solo el estudiante propietario puede subir este archivo.</span>
                         }
                       </div>
                     }
@@ -244,7 +259,7 @@
                             (change)="onFileSelected($event, req.id)"
                             [disabled]="fileUploadInProgress()"
                             class="file-input"
-                            accept="application/pdf,.pdf"
+                            [attr.accept]="getAcceptedMimeTypes(req)"
                           />
                           <label class="upload-label" (click)="correctionInput.click()">
                             @if (fileUploadInProgress()) {
@@ -256,6 +271,9 @@
                             }
                           </label>
                         </div>
+                        @if (uploadErrorMessages()[req.id]) {
+                          <span class="upload-error">{{ uploadErrorMessages()[req.id] }}</span>
+                        }
                       </div>
                     }
                   </div>

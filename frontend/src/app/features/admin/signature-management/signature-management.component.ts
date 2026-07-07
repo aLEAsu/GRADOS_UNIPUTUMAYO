@@ -216,8 +216,29 @@ export class SignatureManagementComponent implements OnInit {
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (input.files?.length) {
-      this.selectedFile = input.files[0];
+    this.error.set('');
+    if (!input.files?.length) {
+      this.selectedFile = null;
+      return;
+    }
+
+    const file = input.files[0];
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+    const validExtensions = ['png', 'jpg', 'jpeg'];
+
+    if (!validTypes.includes(file.type) && !validExtensions.includes(extension)) {
+      this.selectedFile = null;
+      this.error.set('Formato inválido. Permite PNG, JPG y JPEG.');
+      input.value = '';
+      return;
+    }
+
+    this.selectedFile = file;
+    if (['jpg', 'jpeg'].includes(extension)) {
+      this.successMessage.set('Se permiten JPG/JPEG, pero se recomienda PNG transparente para firma sin fondo.');
+    } else {
+      this.successMessage.set('');
     }
   }
 

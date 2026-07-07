@@ -135,6 +135,16 @@
                         ✏️
                       </button>
                     }
+                    @if ((userRole() === 'ADMIN' || userRole() === 'SUPERADMIN') && viewType() === 'all') {
+                      <button
+                        class="btn-action btn-delete"
+                        title="Eliminar proceso"
+                        (click)="deleteProcess(process)"
+                        [disabled]="actionInProgress() !== null"
+                      >
+                        ❌
+                      </button>
+                    }
                   </div>
                 </td>
               </tr>

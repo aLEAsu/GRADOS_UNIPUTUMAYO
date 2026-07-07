@@ -15,7 +15,7 @@ export const reviewsRoutes: Routes = [
     path: 'administrative',
     component: AdminReviewsComponent,
     canActivate: [roleGuard],
-    data: { roles: [UserRole.SECRETARY] }
+    data: { roles: [UserRole.SECRETARY, UserRole.ADMIN, UserRole.SUPERADMIN] }
   },
   {
     path: '',

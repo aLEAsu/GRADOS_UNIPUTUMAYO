@@ -27,10 +27,14 @@ export class ModalityManagementComponent implements OnInit {
   modalityForm = { name: '', code: '', description: '', isActive: true };
   saving = signal(false);
 
-  // Add requirement
+  // Add/edit requirement
   showRequirementModal = signal(false);
   targetModalityId = '';
-  requirementForm = { documentTypeId: '', isRequired: true, displayOrder: 1, instructions: '' };
+  requirementForm = { documentTypeId: '', documentTypeName: '', isRequired: true, displayOrder: 1, instructions: '' };
+  requirementFile: File | null = null;
+  requirementFileName = '';
+  requirementExistingFileName = '';
+  editingRequirementId: string | null = null;
 
   constructor(private adminService: AdminService) {}
 
@@ -141,33 +145,93 @@ export class ModalityManagementComponent implements OnInit {
   // === REQUIREMENTS ===
 
   openAddRequirement(modalityId: string): void {
+    this.editingRequirementId = null;
     this.targetModalityId = modalityId;
-    this.requirementForm = { documentTypeId: '', isRequired: true, displayOrder: 1, instructions: '' };
+    const modality = this.modalities().find((m) => m.id === modalityId);
+    const nextOrder = modality?.requirements?.length ? modality.requirements.length + 1 : 1;
+    this.requirementForm = {
+      documentTypeId: '',
+      documentTypeName: '',
+      isRequired: true,
+      displayOrder: nextOrder,
+      instructions: '',
+    };
+    this.requirementFile = null;
+    this.requirementFileName = '';
+    this.error.set('');
+    this.showRequirementModal.set(true);
+  }
+
+  openEditRequirement(modalityId: string, requirement: any): void {
+    this.editingRequirementId = requirement.id;
+    this.targetModalityId = modalityId;
+    this.requirementForm = {
+      documentTypeId: requirement.documentTypeId,
+      documentTypeName: '',
+      isRequired: requirement.isRequired,
+      displayOrder: requirement.displayOrder,
+      instructions: requirement.instructions || '',
+    };
+    this.requirementFile = null;
+    this.requirementFileName = '';
+    this.requirementExistingFileName = requirement.existingFileName || '';
+    this.error.set('');
     this.showRequirementModal.set(true);
   }
 
   closeRequirementModal(): void {
     this.showRequirementModal.set(false);
     this.targetModalityId = '';
+    this.editingRequirementId = null;
+    this.requirementFile = null;
+    this.requirementFileName = '';
+    this.requirementExistingFileName = '';
+    this.error.set('');
+  }
+
+  onRequirementFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] || null;
+    this.requirementFile = file;
+    this.requirementFileName = file?.name || '';
   }
 
   addRequirement(): void {
-    if (!this.requirementForm.documentTypeId) {
-      this.error.set('Selecciona un tipo de documento.');
+    if (!this.requirementForm.documentTypeId && !this.requirementForm.documentTypeName?.trim()) {
+      this.error.set('Selecciona o ingresa un tipo de documento.');
       return;
     }
 
+    const payload = new FormData();
+    if (this.requirementForm.documentTypeId) {
+      payload.append('documentTypeId', this.requirementForm.documentTypeId);
+    }
+    if (this.requirementForm.documentTypeName?.trim()) {
+      payload.append('documentTypeName', this.requirementForm.documentTypeName.trim());
+    }
+    payload.append('isRequired', String(this.requirementForm.isRequired));
+    payload.append('displayOrder', String(this.requirementForm.displayOrder));
+    payload.append('instructions', this.requirementForm.instructions || '');
+    if (this.requirementFile) {
+      payload.append('file', this.requirementFile, this.requirementFile.name);
+    }
+
     this.saving.set(true);
-    this.adminService.addRequirementToModality(this.targetModalityId, this.requirementForm).subscribe({
+    const request$ = this.editingRequirementId
+      ? this.adminService.updateRequirement(this.targetModalityId, this.editingRequirementId, payload)
+      : this.adminService.addRequirementToModality(this.targetModalityId, payload);
+
+    request$.subscribe({
       next: () => {
         this.saving.set(false);
         this.showRequirementModal.set(false);
-        this.successMsg.set('Requisito agregado correctamente.');
+        this.successMsg.set(this.editingRequirementId ? 'Requisito actualizado correctamente.' : 'Requisito agregado correctamente.');
+        this.editingRequirementId = null;
         this.loadModalities();
       },
       error: (err) => {
         this.saving.set(false);
-        this.error.set(err.error?.message || 'Error al agregar el requisito.');
+        this.error.set(err.error?.message || (this.editingRequirementId ? 'Error al actualizar el requisito.' : 'Error al agregar el requisito.'));
       }
     });
   }

@@ -280,19 +280,36 @@
   font-weight: 600;
   padding: 0.25rem 0.625rem;
   border-radius: 6px;
+  white-space: nowrap;
 }
 
 .status-draft {
-  background: var(--color-border-light);
-  color: var(--color-gris);
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
 }
 .status-active {
-  background: var(--color-bg-secondary);
-  color: var(--color-azul);
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
 }
 .status-review {
-  background: var(--color-bg-secondary);
+  background: rgba(255, 255, 255, 0.15);
   color: var(--color-amarillo);
+}
+.status-approved {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--color-verde-oscuro);
+}
+.status-completed {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--color-verde-oscuro);
+}
+.status-archived {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-text-secondary);
+}
+.status-unknown {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--color-rojo);
 }
 .status-approved {
   background: var(--color-bg-secondary);

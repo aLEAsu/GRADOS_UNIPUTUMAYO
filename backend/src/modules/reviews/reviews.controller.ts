@@ -28,7 +28,7 @@ export class ReviewsController {
    * POST /reviews/requirement/:id/send-to-review
    */
   @Post('requirement/:id/send-to-review')
-  @Roles(UserRole.SECRETARY, UserRole.ADMIN)
+  @Roles(UserRole.SECRETARY, UserRole.ADMIN, UserRole.SUPERADMIN)
   async sendToReview(
     @Param('id') requirementInstanceId: string,
     @CurrentUser() user: JwtPayload,
@@ -59,7 +59,7 @@ export class ReviewsController {
    * POST /reviews/requirement/:id/administrative-approval
    */
   @Post('requirement/:id/administrative-approval')
-  @Roles(UserRole.SECRETARY, UserRole.ADMIN)
+  @Roles(UserRole.SECRETARY, UserRole.ADMIN, UserRole.SUPERADMIN)
   async createAdministrativeApproval(
     @Param('id') requirementInstanceId: string,
     @Body() dto: CreateApprovalDto,
@@ -136,7 +136,7 @@ export class ReviewsController {
    * GET /reviews/pending/administrative
    */
   @Get('pending/administrative')
-  @Roles(UserRole.SECRETARY, UserRole.ADMIN)
+  @Roles(UserRole.SECRETARY, UserRole.ADMIN, UserRole.SUPERADMIN)
   async getPendingAdminReviews() {
     return this.reviewsService.getPendingAdminReviews();
   }

@@ -608,6 +608,13 @@
   background-color: rgba(9, 97, 143, 0.05);
 }
 
+.upload-error {
+  display: block;
+  margin-top: 0.75rem;
+  color: var(--color-rojo);
+  font-size: 0.825rem;
+}
+
 /* Documents List */
 .documents-list {
   display: flex;
