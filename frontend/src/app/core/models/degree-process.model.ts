@@ -34,6 +34,16 @@ export enum ApprovalDecision {
   REVISION_REQUESTED = 'REVISION_REQUESTED'
 }
 
+export interface ModalityResource {
+  id: string;
+  label: string;
+  description?: string;
+  originalFileName: string;
+  mimeType: string;
+  fileSizeByte: number;
+  createdAt: string;
+}
+
 export interface DegreeModality {
   id: string;
   code: string;
@@ -41,6 +51,7 @@ export interface DegreeModality {
   description: string;
   isActive: boolean;
   requirements?: ModalityRequirement[];
+  resources?: ModalityResource[];
 }
 
 export interface ModalityRequirement {
@@ -51,6 +62,7 @@ export interface ModalityRequirement {
   displayOrder: number;
   instructions?: string;
   documentType?: DocumentType;
+  existingFileName?: string | null;
 }
 
 export interface DocumentType {

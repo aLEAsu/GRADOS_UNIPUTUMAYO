@@ -24,237 +24,290 @@
   </div>
 
   <!-- Error Message -->
-  @if (error()) {
-    <div class="alert alert-error">
-      <span class="alert-icon">⚠️</span>
-      <p>{{ error() }}</p>
-    </div>
-  }
+  <div *ngIf="error()" class="alert alert-error">
+    <span class="alert-icon">⚠️</span>
+    <p>{{ error() }}</p>
+  </div>
 
   <!-- Success Message -->
-  @if (success()) {
-    <div class="alert alert-success">
-      <span class="alert-icon">✓</span>
-      <p>Proceso creado exitosamente. Redirigiendo...</p>
-    </div>
-  }
+  <div *ngIf="success()" class="alert alert-success">
+    <span class="alert-icon">✓</span>
+    <p>Proceso creado exitosamente. Redirigiendo...</p>
+  </div>
 
   <!-- STEP 1: Select Modality -->
-  @if (currentStep() === 1) {
-    <div class="form-section step-section">
-      <h2 class="section-title">Paso 1: Selecciona la Modalidad</h2>
-      <p class="section-description">
-        Elige la modalidad que mejor se adapta a tu trabajo de grado
-      </p>
+  <div *ngIf="currentStep() === 1" class="form-section step-section">
+    <h2 class="section-title">Paso 1: Selecciona la Modalidad</h2>
+    <p class="section-description">
+      Elige la modalidad que mejor se adapta a tu trabajo de grado
+    </p>
 
-      @if (loading()) {
-        <div class="loading-state">
-          <div class="spinner"></div>
-          <p>Cargando modalidades...</p>
-        </div>
-      } @else {
-        <div class="modalities-grid">
-          @for (card of modalityCards(); track card.code) {
-            <button
-              class="modality-card"
-              [class.selected]="selectedModality() === card.code"
-              (click)="selectModality(card.code)"
-              type="button"
-            >
-              <div class="card-icon">{{ card.icon }}</div>
-              <h3 class="card-title">{{ card.name }}</h3>
-              <p class="card-description">{{ card.description }}</p>
-              @if (selectedModality() === card.code) {
-                <div class="card-selected-mark">✓ Seleccionado</div>
-              }
-            </button>
-          }
-        </div>
-      }
-
-      <div class="form-actions">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          (click)="router.navigate(['/process'])"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          (click)="goToStep(2)"
-          [disabled]="!canProceedToStep2()"
-        >
-          Continuar →
-        </button>
+    <div *ngIf="loading(); else modalityList">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Cargando modalidades...</p>
       </div>
     </div>
-  }
+
+    <ng-template #modalityList>
+      <div class="modalities-grid">
+        <button
+          *ngFor="let card of modalityCards(); trackBy: trackByCardCode"
+          class="modality-card"
+          [class.selected]="selectedModality() === card.code"
+          (click)="selectModality(card.code)"
+          type="button"
+        >
+          <div class="card-icon">{{ card.icon }}</div>
+          <h3 class="card-title">{{ card.name }}</h3>
+          <p class="card-description">{{ card.description }}</p>
+          <div class="modality-meta">
+            <span class="meta-pill">{{ card.requirements.length }} requisitos</span>
+            <span class="meta-pill" *ngIf="card.hasResources">{{ card.resourceCount }} archivo(s)</span>
+          </div>
+          <div *ngIf="selectedModality() === card.code" class="card-selected-mark">✓ Seleccionado</div>
+        </button>
+      </div>
+    </ng-template>
+
+    <div class="form-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        (click)="router.navigate(['/process'])"
+      >
+        Cancelar
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary"
+        (click)="goToStep(2)"
+        [disabled]="!canProceedToStep2()"
+      >
+        Continuar →
+      </button>
+    </div>
+  </div>
 
   <!-- STEP 2: Fill Details -->
-  @if (currentStep() === 2) {
-    <div class="form-section step-section">
-      <h2 class="section-title">Paso 2: Información del Proceso</h2>
+  <div *ngIf="currentStep() === 2" class="form-section step-section">
+    <h2 class="section-title">Paso 2: Información del Proceso</h2>
 
-      <div class="selected-modality-info">
-        <div class="info-badge">
-          <span class="info-icon">{{ selectedModalityData()?.icon }}</span>
-          <span class="info-text">{{ selectedModalityData()?.name }}</span>
-        </div>
-      </div>
-
-      <form [formGroup]="form" class="form-content">
-        <!-- Title Field -->
-        <div class="form-group">
-          <label for="title" class="form-label">
-            Título del Proceso
-            <span class="required">*</span>
-          </label>
-          <input
-            id="title"
-            type="text"
-            class="form-input"
-            formControlName="title"
-            placeholder="Ingresa el título de tu trabajo de grado"
-            [class.invalid]="isFieldInvalid('title')"
-            maxlength="200"
-          />
-          @if (isFieldInvalid('title')) {
-            <span class="field-error">{{ getFieldError('title') }}</span>
-          }
-          <span class="character-count">
-            {{ form.get('title')?.value?.length || 0 }}/200
-          </span>
-        </div>
-
-        <!-- Description Field -->
-        <div class="form-group">
-          <label for="description" class="form-label">
-            Descripción
-            <span class="required">*</span>
-          </label>
-          <textarea
-            id="description"
-            class="form-textarea"
-            formControlName="description"
-            placeholder="Describe brevemente el contenido y objetivos de tu proceso..."
-            [class.invalid]="isFieldInvalid('description')"
-            maxlength="1000"
-            rows="6"
-          ></textarea>
-          @if (isFieldInvalid('description')) {
-            <span class="field-error">{{ getFieldError('description') }}</span>
-          }
-          <span class="character-count">
-            {{ form.get('description')?.value?.length || 0 }}/1000
-          </span>
-        </div>
-      </form>
-
-      <!-- Requirements Preview -->
-      <div class="requirements-preview">
-        <h3 class="requirements-title">
-          <span class="requirements-icon">📋</span>
-          Requisitos para esta modalidad
-        </h3>
-        <ul class="requirements-list">
-          @for (req of selectedModalityData()?.requirements; track $index) {
-            <li class="requirement-item">
-              <span class="requirement-check">✓</span>
-              {{ req }}
-            </li>
-          }
-        </ul>
-        <p class="requirements-note">
-          Asegúrate de contar con todos estos requisitos antes de continuar
-        </p>
-      </div>
-
-      <div class="form-actions">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          (click)="previousStep()"
-        >
-          ← Atrás
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          (click)="goToStep(3)"
-          [disabled]="!canProceedToStep3"
-        >
-          Revisar →
-        </button>
+    <div class="selected-modality-info">
+      <div class="info-badge">
+        <span class="info-icon">{{ selectedModalityData()?.icon }}</span>
+        <span class="info-text">{{ selectedModalityData()?.name }}</span>
       </div>
     </div>
-  }
+
+    <form [formGroup]="form" class="form-content">
+      <!-- Title Field -->
+      <div class="form-group">
+        <label for="title" class="form-label">
+          Título del Proceso
+          <span class="required">*</span>
+        </label>
+        <input
+          id="title"
+          type="text"
+          class="form-input"
+          formControlName="title"
+          placeholder="Ingresa el título de tu trabajo de grado"
+          [class.invalid]="isFieldInvalid('title')"
+          maxlength="200"
+        />
+        <span *ngIf="isFieldInvalid('title')" class="field-error">{{ getFieldError('title') }}</span>
+        <span class="character-count">
+          {{ form.get('title')?.value?.length || 0 }}/200
+        </span>
+      </div>
+
+      <!-- Description Field -->
+      <div class="form-group">
+        <label for="description" class="form-label">
+          Descripción
+          <span class="required">*</span>
+        </label>
+        <textarea
+          id="description"
+          class="form-textarea"
+          formControlName="description"
+          placeholder="Describe brevemente el contenido y objetivos de tu proceso..."
+          [class.invalid]="isFieldInvalid('description')"
+          maxlength="1000"
+          rows="6"
+        ></textarea>
+        <span *ngIf="isFieldInvalid('description')" class="field-error">{{ getFieldError('description') }}</span>
+        <span class="character-count">
+          {{ form.get('description')?.value?.length || 0 }}/1000
+        </span>
+      </div>
+    </form>
+
+    <!-- Requirements Preview -->
+    <div class="requirements-preview">
+      <h3 class="requirements-title">
+        <span class="requirements-icon">📋</span>
+        Requisitos para esta modalidad
+      </h3>
+      <ul class="requirements-list">
+        <li
+          *ngFor="let req of selectedModalityData()?.requirements || []; trackBy: trackByRequirementId"
+          class="requirement-item"
+        >
+          <span class="requirement-check">✓</span>
+          {{ req.documentType?.name || 'Documento' }}
+          <span *ngIf="req.isRequired" class="required-badge-inline">(Obligatorio)</span>
+        </li>
+      </ul>
+      <p class="requirements-note">
+        Asegúrate de contar con todos estos requisitos antes de continuar
+      </p>
+    </div>
+
+    <div *ngIf="hasSelectedModalityResources()" class="requirements-preview resources-preview">
+      <h3 class="requirements-title">
+        <span class="requirements-icon">📎</span>
+        Archivos disponibles para descarga
+      </h3>
+      <div class="resource-list">
+        <div *ngFor="let resource of selectedModalityData()?.resources; trackBy: trackByResourceId" class="resource-item">
+          <div>
+            <strong>{{ resource.label }}</strong>
+            <p class="resource-description">{{ resource.description || resource.originalFileName }}</p>
+          </div>
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm"
+            [disabled]="resourceDownloadInProgress() === resource.id"
+            (click)="downloadResource(selectedModalityData()?.id!, resource.id, resource.originalFileName)"
+          >
+            <span *ngIf="resourceDownloadInProgress() === resource.id; else downloadLabel">Descargando...</span>
+            <ng-template #downloadLabel><span>Descargar</span></ng-template>
+          </button>
+        </div>
+      </div>
+      <p class="requirements-note">
+        Descarga los archivos que el instituto ha adjuntado para esta modalidad antes de continuar.
+      </p>
+    </div>
+
+    <div class="form-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        (click)="previousStep()"
+      >
+        ← Atrás
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary"
+        (click)="reviewRequirements()"
+        [disabled]="!canProceedToStep3"
+      >
+        Revisar →
+      </button>
+    </div>
+  </div>
 
   <!-- STEP 3: Confirmation -->
-  @if (currentStep() === 3) {
-    <div class="form-section step-section">
-      <h2 class="section-title">Paso 3: Confirmación</h2>
+  <div *ngIf="currentStep() === 3" class="form-section step-section">
+    <h2 class="section-title">Paso 3: Confirmación</h2>
 
-      <div class="confirmation-summary">
-        <h3 class="summary-title">Resumen de tu inscripción</h3>
+    <div class="confirmation-summary">
+      <h3 class="summary-title">Resumen de tu inscripción</h3>
 
-        <div class="summary-item">
-          <span class="summary-label">Modalidad:</span>
-          <span class="summary-value">
-            <span class="modality-badge">{{ selectedModalityData()?.name }}</span>
-          </span>
-        </div>
-
-        <div class="summary-item">
-          <span class="summary-label">Título:</span>
-          <span class="summary-value">{{ form.get('title')?.value }}</span>
-        </div>
-
-        <div class="summary-item">
-          <span class="summary-label">Descripción:</span>
-          <span class="summary-value description-value">{{ form.get('description')?.value }}</span>
-        </div>
-
-        <div class="summary-item">
-          <span class="summary-label">Estado inicial:</span>
-          <span class="summary-value">
-            <span class="status-badge status-draft">Borrador</span>
-          </span>
-        </div>
+      <div class="summary-item">
+        <span class="summary-label">Modalidad:</span>
+        <span class="summary-value">
+          <span class="modality-badge">{{ selectedModalityData()?.name }}</span>
+        </span>
       </div>
 
-      <div class="confirmation-note">
-        <p class="note-title">Nota importante:</p>
-        <ul class="note-list">
-          <li>Podrás editar esta información antes de activar el proceso</li>
-          <li>Se te asignará un asesor cuando el proceso sea activado</li>
-          <li>Deberás subir los documentos requeridos en el siguiente paso</li>
-        </ul>
+      <div class="summary-item">
+        <span class="summary-label">Título:</span>
+        <span class="summary-value">{{ form.get('title')?.value }}</span>
       </div>
 
-      <div class="form-actions">
-        <button
-          type="button"
-          class="btn btn-secondary"
-          (click)="previousStep()"
-          [disabled]="loading()"
-        >
-          ← Atrás
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          (click)="submitForm()"
-          [disabled]="!form.valid || loading()"
-        >
-          @if (loading()) {
-            <span>Creando...</span>
-          } @else {
-            <span>Crear Proceso</span>
-          }
-        </button>
+      <div class="summary-item">
+        <span class="summary-label">Descripción:</span>
+        <span class="summary-value description-value">{{ form.get('description')?.value }}</span>
+      </div>
+
+      <div class="summary-item">
+        <span class="summary-label">Documentos obligatorios seleccionados:</span>
+        <span class="summary-value">
+          {{ requiredDocumentCount }} requisitos obligatorios
+        </span>
       </div>
     </div>
-  }
+
+    <div class="requirements-upload">
+      <h3 class="requirements-title">Carga los documentos obligatorios</h3>
+      <div class="upload-steps-note">
+        <p>Debes seleccionar y validar todos los archivos obligatorios antes de crear el proceso.</p>
+      </div>
+      <div class="requirements-list upload-list">
+        <div *ngFor="let req of selectedRequirements(); trackBy: trackByRequirementId" class="upload-requirement-row">
+          <div class="upload-requirement-info">
+            <span class="requirement-name">{{ req.documentType?.name || 'Documento' }}</span>
+            <span *ngIf="req.isRequired" class="required-badge-inline">Obligatorio</span>
+            <p class="requirement-instructions">{{ req.instructions || req.documentType?.description || 'Sin descripción' }}</p>
+          </div>
+          <div class="upload-controls">
+            <input
+              type="file"
+              id="req-file-{{ req.id }}"
+              (change)="onRequirementFileSelected($event, req.id)"
+              [attr.accept]="getAcceptedMimeTypes(req)"
+            />
+            <label class="file-label" for="req-file-{{ req.id }}">
+              <span *ngIf="selectedFilesByRequirementId()[req.id]; else selectFileLabel">{{ selectedFilesByRequirementId()[req.id]?.name }}</span>
+              <ng-template #selectFileLabel><span>Seleccionar archivo</span></ng-template>
+            </label>
+            <span *ngIf="selectedFileErrors()[req.id]" class="upload-error">{{ selectedFileErrors()[req.id] }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="confirmation-summary">
+      <div class="summary-item">
+        <span class="summary-label">Estado inicial:</span>
+        <span class="summary-value">
+          <span class="status-badge status-draft">Borrador</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="confirmation-note">
+      <p class="note-title">Nota importante:</p>
+      <ul class="note-list">
+        <li>Podrás editar esta información antes de activar el proceso</li>
+        <li>Se te asignará un asesor cuando el proceso sea activado</li>
+        <li>Deberás subir los documentos requeridos en el siguiente paso</li>
+      </ul>
+    </div>
+
+    <div class="form-actions">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        (click)="previousStep()"
+        [disabled]="loading()"
+      >
+        ← Atrás
+      </button>
+      <button
+        type="button"
+        class="btn btn-primary"
+        (click)="submitForm()"
+        [disabled]="!canCreateProcess || loading()"
+      >
+        <span *ngIf="loading(); else createLabel">Creando...</span>
+        <ng-template #createLabel><span>Crear Proceso</span></ng-template>
+      </button>
+    </div>
+  </div>
 </div>

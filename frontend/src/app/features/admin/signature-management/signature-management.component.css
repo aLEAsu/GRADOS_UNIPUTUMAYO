@@ -68,8 +68,6 @@
    CONTAINER
    ===================== */
 .sig-container {
-  width: 100%;
-  max-width: 1280px;
   margin: 0 auto;
   padding: var(--sp-8);
   background: linear-gradient(135deg, var(--color-azul) -20%, var(--color-verde) 190%);
@@ -89,7 +87,7 @@
 .sig-header-text h1 {
   font-size: 26px;
   font-weight: 700;
-  color: var(--sig-slate-900);
+  color: white;
   margin: 0 0 var(--sp-1) 0;
   letter-spacing: -0.5px;
   line-height: 1.2;
@@ -97,7 +95,7 @@
 
 .sig-header-text p {
   font-size: 14px;
-  color: var(--sig-slate-500);
+  color: white;
   margin: 0;
   line-height: 1.5;
 }
@@ -212,7 +210,7 @@
   font-family: inherit;
   font-size: 14px;
   font-weight: 500;
-  color: var(--sig-slate-500);
+  color: white;
   cursor: pointer;
   transition:
     color 0.2s,
@@ -226,13 +224,12 @@
 }
 
 .tab-nav button:hover {
-  color: var(--sig-blue-light);
+  color: black;
   background: var(--sig-blue-bg);
   border-radius: var(--r-sm) var(--r-sm) 0 0;
 }
 
 .tab-nav button.active {
-  color: var(--sig-blue);
   border-bottom-color: var(--sig-blue);
   font-weight: 600;
 }
@@ -286,7 +283,7 @@
 .panel-toolbar h2 {
   font-size: 18px;
   font-weight: 600;
-  color: var(--sig-slate-900);
+  color: white;
   margin: 0;
   line-height: 1.3;
 }
@@ -423,13 +420,13 @@
 .empty h3 {
   font-size: 16px;
   font-weight: 600;
-  color: var(--sig-slate-700);
+  color: white;
   margin: 0 0 var(--sp-2);
 }
 
 .empty p {
   font-size: 14px;
-  color: var(--sig-slate-500);
+  color: var( --sig-slate-400);
   margin: 0;
   max-width: 360px;
   margin-left: auto;

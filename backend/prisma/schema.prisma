@@ -111,6 +111,7 @@ model User {
   degreeProcessesAsStudent   DegreeProcess[] @relation("StudentDegreeProcess")
   degreeProcessesAsAdvisor   DegreeProcess[] @relation("AdvisorDegreeProcess")
   documentVersionsUploaded   DocumentVersion[] @relation("UploadedByUser")
+  modalityResourcesUploaded ModalityResource[] @relation("ModalityResourceUploader")
   approvalsGiven       Approval[] @relation("ApproverUser")
   signaturesApplied    DigitalSignature[] @relation("SignedByUser")
   signatureImages      SignatureImage[] @relation("SignatureImageUser")
@@ -172,8 +173,30 @@ model DegreeModality {
   // Relations
   modalityRequirements ModalityRequirement[]
   degreeProcesses      DegreeProcess[]
+  resources            ModalityResource[]
 
   @@map("degree_modalities")
+}
+
+model ModalityResource {
+  id               String   @id @default(uuid()) @db.Uuid
+  modalityId       String   @db.Uuid @map("modality_id")
+  label            String
+  description      String?  
+  fileName         String   @map("file_name")
+  originalFileName String   @map("original_file_name")
+  mimeType         String   @map("mime_type")
+  fileSizeByte     Int      @map("file_size_byte")
+  storagePath      String   @map("storage_path")
+  uploadedById     String   @db.Uuid @map("uploaded_by_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  modality         DegreeModality @relation(fields: [modalityId], references: [id], onDelete: Cascade)
+  uploadedBy       User           @relation("ModalityResourceUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([modalityId])
+  @@map("modality_resources")
 }
 
 model DocumentType {

@@ -75,6 +75,7 @@ export class ProcessListComponent implements OnInit {
 
   readonly UserRole = UserRole;
   readonly Math = Math;
+  actionInProgress = signal<string | null>(null);
 
   statusOptions = Object.values(ProcessStatus);
   modalityOptions: string[] = [];
@@ -221,6 +222,25 @@ export class ProcessListComponent implements OnInit {
       return lastName;
     }
     return 'No asignado';
+  }
+
+  deleteProcess(process: DegreeProcess): void {
+    if (this.actionInProgress()) return;
+    if (!confirm(`¿Deseas eliminar permanentemente el proceso de ${process.student?.firstName} ${process.student?.lastName}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    this.actionInProgress.set(process.id);
+    this.processService.deleteProcess(process.id).subscribe({
+      next: () => {
+        this.actionInProgress.set(null);
+        this.loadProcesses();
+      },
+      error: (err) => {
+        console.error('Error eliminando proceso:', err);
+        this.actionInProgress.set(null);
+      }
+    });
   }
 
   goToPage(page: number): void {

@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -225,5 +226,43 @@ export class DegreeProcessController {
     @CurrentUser() user: JwtPayload,
   ) {
     return this.degreeProcessService.updateProcessStatus(processId, updateStatusDto, user.sub, user.role);
+  }
+
+  /**
+   * Finalize a degree process by setting its status to COMPLETED
+   */
+  @Patch(':id/finalize')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Finalize degree process',
+    description: 'Administrator finalizes a degree process by marking it as COMPLETED.',
+  })
+  @ApiParam({ name: 'id', description: 'Process UUID', type: String })
+  @ApiResponse({ status: 200, description: 'Process finalized successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Process not found' })
+  async finalizeProcess(
+    @Param('id', ParseUUIDPipe) processId: string,
+  ) {
+    return this.degreeProcessService.adminFinalizeProcess(processId);
+  }
+
+  /**
+   * Delete a degree process permanently
+   */
+  @Delete(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Delete degree process',
+    description: 'Administrator permanently deletes a degree process and its related data.',
+  })
+  @ApiParam({ name: 'id', description: 'Process UUID', type: String })
+  @ApiResponse({ status: 200, description: 'Process deleted successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Process not found' })
+  async deleteProcess(@Param('id', ParseUUIDPipe) processId: string) {
+    return this.degreeProcessService.adminDeleteProcess(processId);
   }
 }

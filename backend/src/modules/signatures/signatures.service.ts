@@ -104,10 +104,10 @@ export class SignaturesService {
     }
 
     // Validate file is an image (PNG preferred for transparency)
-    const allowedMimes = ['image/png', 'image/jpeg', 'image/webp'];
+    const allowedMimes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
     if (!allowedMimes.includes(file.mimetype)) {
       throw new BadRequestException(
-        `Tipo de archivo no permitido: ${file.mimetype}. Use PNG, JPEG o WebP.`,
+        `Tipo de archivo no permitido: ${file.mimetype}. Use PNG, JPG, JPEG o WebP.`,
       );
     }
 
@@ -151,10 +151,10 @@ export class SignaturesService {
 
     // Replace image file if provided
     if (file) {
-      const allowedMimes = ['image/png', 'image/jpeg', 'image/webp'];
+      const allowedMimes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
       if (!allowedMimes.includes(file.mimetype)) {
         throw new BadRequestException(
-          `Tipo de archivo no permitido: ${file.mimetype}. Use PNG, JPEG o WebP.`,
+          `Tipo de archivo no permitido: ${file.mimetype}. Use PNG, JPG, JPEG o WebP.`,
         );
       }
 

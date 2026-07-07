@@ -87,9 +87,14 @@
                           <span class="req-desc">{{ req.instructions || req.documentType?.description || '' }}</span>
                         </div>
                         <span class="req-badge" [class.required]="req.isRequired">{{ req.isRequired ? 'Obligatorio' : 'Opcional' }}</span>
-                        <button class="btn-icon-sm danger" (click)="removeRequirement(modality.id, req.id); $event.stopPropagation()" title="Eliminar requisito">
-                          <i class="pi pi-trash"></i>
-                        </button>
+                        <div class="req-actions">
+                          <button class="btn-icon-sm" (click)="openEditRequirement(modality.id, req); $event.stopPropagation()" title="Editar requisito">
+                            <i class="pi pi-pencil"></i>
+                          </button>
+                          <button class="btn-icon-sm danger" (click)="removeRequirement(modality.id, req.id); $event.stopPropagation()" title="Eliminar requisito">
+                            <i class="pi pi-trash"></i>
+                          </button>
+                        </div>
                       </div>
                     }
                   </div>
@@ -154,31 +159,61 @@
     </div>
   }
 
-  <!-- Add Requirement Modal -->
+  <!-- Add/Edit Requirement Modal -->
   @if (showRequirementModal()) {
     <div class="modal-overlay" (click)="closeRequirementModal()">
       <div class="modal-content" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h3>Agregar Requisito</h3>
+          <h3>{{ editingRequirementId ? 'Editar Requisito' : 'Agregar Requisito' }}</h3>
           <button class="btn-icon" (click)="closeRequirementModal()"><i class="pi pi-times"></i></button>
         </div>
         <div class="modal-body">
           <div class="form-group">
             <label class="form-label">Tipo de Documento *</label>
             <select class="form-input" [(ngModel)]="requirementForm.documentTypeId">
-              <option value="">Seleccionar...</option>
+              <option value="">Seleccionar uno existente...</option>
               @for (dt of documentTypes(); track dt.id) {
                 <option [value]="dt.id">{{ dt.name }}</option>
               }
             </select>
+            <small class="form-hint">O ingresa un nuevo nombre en el campo siguiente.</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre del nuevo tipo de documento</label>
+            <input
+              type="text"
+              class="form-input"
+              [(ngModel)]="requirementForm.documentTypeName"
+              placeholder="Ej: Carta de presentación"
+            />
+            <small class="form-hint">Si completas este campo se creará un nuevo tipo de documento automáticamente.</small>
           </div>
           <div class="form-group">
             <label class="form-label">Orden de presentación</label>
             <input type="number" class="form-input" [(ngModel)]="requirementForm.displayOrder" min="1" />
+            <small class="form-hint">Si el orden seleccionado ya existe, el sistema ajustará automáticamente los demás requisitos para evitar duplicados.</small>
           </div>
           <div class="form-group">
             <label class="form-label">Instrucciones</label>
             <textarea class="form-textarea" [(ngModel)]="requirementForm.instructions" rows="2" placeholder="Instrucciones opcionales"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Archivo opcional</label>
+            <input
+              type="file"
+              class="form-input"
+              accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.doc,.docx"
+              (change)="onRequirementFileSelected($event)"
+            />
+            @if (requirementFileName) {
+              <small class="form-hint">Archivo seleccionado: {{ requirementFileName }}</small>
+            } @else if (editingRequirementId && requirementExistingFileName) {
+              <small class="form-hint">Archivo actual: {{ requirementExistingFileName }}. No selecciones archivo si deseas conservar el archivo existente.</small>
+            } @else if (editingRequirementId) {
+              <small class="form-hint">No hay archivo guardado para este requisito. Puedes subir un PDF o Word opcional.</small>
+            } @else {
+              <small class="form-hint">Puedes subir un PDF o Word opcional para este requisito.</small>
+            }
           </div>
           <div class="form-group checkbox-group">
             <label>
@@ -190,7 +225,7 @@
         <div class="modal-footer">
           <button class="btn btn-outline" (click)="closeRequirementModal()">Cancelar</button>
           <button class="btn btn-primary" (click)="addRequirement()" [disabled]="saving()">
-            {{ saving() ? 'Guardando...' : 'Agregar Requisito' }}
+            {{ saving() ? 'Guardando...' : (editingRequirementId ? 'Actualizar Requisito' : 'Agregar Requisito') }}
           </button>
         </div>
       </div>

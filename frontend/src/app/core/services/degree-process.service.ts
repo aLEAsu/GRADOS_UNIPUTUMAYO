@@ -59,6 +59,14 @@ export class DegreeProcessService {
     return this.http.patch<DegreeProcess>(`${this.apiUrl}/${processId}/assign-advisor`, { advisorUserId: advisorId });
   }
 
+  finalizeProcess(processId: string): Observable<DegreeProcess> {
+    return this.http.patch<DegreeProcess>(`${this.apiUrl}/${processId}/finalize`, {});
+  }
+
+  deleteProcess(processId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/${processId}`);
+  }
+
   // Modalities
   getModalities(): Observable<DegreeModality[]> {
     return this.http.get<DegreeModality[]>(`${this.apiUrl}/modalities`);
@@ -66,6 +74,12 @@ export class DegreeProcessService {
 
   getModalityById(id: string): Observable<DegreeModality> {
     return this.http.get<DegreeModality>(`${this.apiUrl}/modalities/${id}`);
+  }
+
+  downloadModalityResource(modalityId: string, resourceId: string): Observable<Blob> {
+    return this.http.get(`${environment.apiUrl}/admin/modalities/${modalityId}/resources/${resourceId}/download`, {
+      responseType: 'blob'
+    });
   }
 
   // Requirements

@@ -477,8 +477,8 @@
           </div>
           <div class="field">
             <label>Archivo de imagen</label>
-            <small>PNG con fondo transparente recomendado</small>
-            <input type="file" accept="image/png,image/jpeg" (change)="onFileSelected($event)" />
+            <small>PNG con fondo transparente recomendado. También se permiten JPG y JPEG.</small>
+            <input type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" (change)="onFileSelected($event)" />
           </div>
         </div>
         <div class="modal-bottom">

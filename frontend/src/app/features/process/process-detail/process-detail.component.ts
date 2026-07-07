@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+﻿import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -33,6 +33,7 @@ export class ProcessDetailComponent implements OnInit {
   error = signal<string | null>(null);
   activeTab = signal<TabType>('requirements');
   fileUploadInProgress = signal(false);
+  uploadErrorMessages = signal<Record<string, string>>({});
   actionInProgress = signal(false);
   successMessage = signal('');
 
@@ -64,7 +65,7 @@ export class ProcessDetailComponent implements OnInit {
   approvalDecisionLabels: Record<ApprovalDecision, string> = {
     [ApprovalDecision.APPROVED]: 'Aprobado',
     [ApprovalDecision.REJECTED]: 'Rechazado',
-    [ApprovalDecision.REVISION_REQUESTED]: 'Requiere Corrección'
+    [ApprovalDecision.REVISION_REQUESTED]: 'Requiere CorrecciÃ³n'
   };
 
   readonly ProcessStatus = ProcessStatus;
@@ -80,10 +81,22 @@ export class ProcessDetailComponent implements OnInit {
     if (!proc || !proc.requirementInstances) return 0;
     const total = proc.requirementInstances.length;
     if (total === 0) return 0;
-    const completed = proc.requirementInstances.filter(
-      r => r.status === DocumentStatus.APROBADO || r.status === DocumentStatus.FINALIZADO
-    ).length;
-    return Math.round((completed / total) * 100);
+
+    const baseProgressByStatus: Record<ProcessStatus, number> = {
+      [ProcessStatus.DRAFT]: proc.advisorId ? 10 : 0,
+      [ProcessStatus.ACTIVE]: 25,
+      [ProcessStatus.IN_REVIEW]: 40,
+      [ProcessStatus.APPROVED]: 100,
+      [ProcessStatus.COMPLETED]: 100,
+      [ProcessStatus.ARCHIVED]: 100,
+    };
+
+    const requirementProgressValues = proc.requirementInstances.map((req) => this.getRequirementProgress(req));
+    const averageRequirementProgress = Math.round(
+      requirementProgressValues.reduce((sum, value) => sum + value, 0) / total,
+    );
+
+    return Math.max(0, Math.min(100, baseProgressByStatus[proc.status] + Math.round(averageRequirementProgress * 0.6)));
   });
 
   canActivateProcess = computed(() => {
@@ -129,6 +142,7 @@ export class ProcessDetailComponent implements OnInit {
     this.processService.getProcessById(this.processId).subscribe({
       next: (process) => {
         this.process.set(process);
+        this.uploadErrorMessages.set({});
         this.loading.set(false);
       },
       error: (err) => {
@@ -141,6 +155,112 @@ export class ProcessDetailComponent implements OnInit {
 
   selectTab(tab: TabType): void {
     this.activeTab.set(tab);
+  }
+
+  getAcceptedMimeTypes(requirement: RequirementInstance): string {
+    const mimeTypes = requirement.modalityRequirement?.documentType?.acceptedMimeTypes;
+    return mimeTypes && mimeTypes.length > 0
+      ? mimeTypes.join(',')
+      : 'application/pdf,.pdf';
+  }
+
+  getMaxFileSizeMb(requirement: RequirementInstance): number | null {
+    return requirement.modalityRequirement?.documentType?.maxFileSizeMb ?? null;
+  }
+
+  getFileValidationError(file: File, requirement: RequirementInstance): string | null {
+    const acceptedMimeTypes = requirement.modalityRequirement?.documentType?.acceptedMimeTypes;
+    if (acceptedMimeTypes && acceptedMimeTypes.length > 0) {
+      const normalizedTypes = acceptedMimeTypes.map(type => type.trim().toLowerCase());
+      const fileMime = file.type.toLowerCase();
+      const extension = file.name.split('.').pop()?.toLowerCase() || '';
+
+      const mimeValid = normalizedTypes.some(type => {
+        if (type.startsWith('.')) {
+          return extension === type.slice(1);
+        }
+        return fileMime === type || file.name.toLowerCase().endsWith(type);
+      });
+
+      if (!mimeValid) {
+        return `Tipo de archivo inválido. Se permiten: ${normalizedTypes.join(', ')}`;
+      }
+    }
+
+    const maxSizeMb = this.getMaxFileSizeMb(requirement);
+    if (maxSizeMb !== null && maxSizeMb > 0) {
+      const maxBytes = maxSizeMb * 1024 * 1024;
+      if (file.size > maxBytes) {
+        return `El archivo excede el tamaño máximo de ${maxSizeMb} MB.`;
+      }
+    }
+
+    return null;
+  }
+
+  hasUploadedDocs(req: RequirementInstance): boolean {
+    return (req.documentVersions?.length ?? 0) > 0;
+  }
+
+  isPendingUploadStatus(req: RequirementInstance): boolean {
+    return [
+      DocumentStatus.POR_CARGAR,
+      DocumentStatus.PENDIENTE,
+      DocumentStatus.EN_CORRECCION,
+    ].includes(req.status);
+  }
+
+  shouldShowUploadSection(req: RequirementInstance): boolean {
+    return this.canUploadDocuments()
+      && this.isPendingUploadStatus(req)
+      && req.status !== DocumentStatus.APROBADO
+      && req.status !== DocumentStatus.FINALIZADO;
+  }
+
+  shouldShowPendingUploadMessage(req: RequirementInstance): boolean {
+    return !this.canUploadDocuments() && !this.hasUploadedDocs(req);
+  }
+
+  onFileSelected(event: Event, requirementId: string): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+
+    const file = input.files[0];
+    const proc = this.process();
+    const req = proc?.requirementInstances?.find(r => r.id === requirementId);
+    if (!req) {
+      this.error.set('Requisito no encontrado para la carga de archivo.');
+      return;
+    }
+
+    const validationError = this.getFileValidationError(file, req);
+    if (validationError) {
+      this.uploadErrorMessages.set({
+        ...this.uploadErrorMessages(),
+        [requirementId]: validationError
+      });
+      input.value = '';
+      return;
+    }
+
+    this.uploadErrorMessages.set({
+      ...this.uploadErrorMessages(),
+      [requirementId]: ''
+    });
+    this.fileUploadInProgress.set(true);
+
+    this.documentService.uploadDocument(requirementId, file).subscribe({
+      next: () => {
+        this.fileUploadInProgress.set(false);
+        this.successMessage.set('Documento cargado correctamente.');
+        this.loadProcess();
+      },
+      error: (err) => {
+        console.error('Error uploading file:', err);
+        this.error.set(err.error?.error || err.error?.message || 'Error al cargar el archivo.');
+        this.fileUploadInProgress.set(false);
+      }
+    });
   }
 
   // === PROCESS ACTIONS ===
@@ -197,29 +317,6 @@ export class ProcessDetailComponent implements OnInit {
     });
   }
 
-  // === DOCUMENT ACTIONS ===
-
-  onFileSelected(event: Event, requirementId: string): void {
-    const input = event.target as HTMLInputElement;
-    if (!input.files?.length) return;
-
-    const file = input.files[0];
-    this.fileUploadInProgress.set(true);
-
-    this.documentService.uploadDocument(requirementId, file).subscribe({
-      next: () => {
-        this.fileUploadInProgress.set(false);
-        this.successMessage.set('Documento cargado correctamente.');
-        this.loadProcess();
-      },
-      error: (err) => {
-        console.error('Error uploading file:', err);
-        this.error.set(err.error?.error || err.error?.message || 'Error al cargar el archivo.');
-        this.fileUploadInProgress.set(false);
-      }
-    });
-  }
-
   downloadDocument(documentVersionId: string, fileName: string): void {
     this.documentService.downloadDocument(documentVersionId).subscribe({
       next: (blob) => {
@@ -264,12 +361,12 @@ export class ProcessDetailComponent implements OnInit {
     this.reviewService.sendToReview(requirementInstanceId).subscribe({
       next: () => {
         this.actionInProgress.set(false);
-        this.successMessage.set('Documento enviado a revisión.');
+        this.successMessage.set('Documento enviado a revisiÃ³n.');
         this.loadProcess();
       },
       error: (err) => {
         console.error('Error sending to review:', err);
-        this.error.set(err.error?.error || err.error?.message || 'Error al enviar a revisión.');
+        this.error.set(err.error?.error || err.error?.message || 'Error al enviar a revisiÃ³n.');
         this.actionInProgress.set(false);
       }
     });
@@ -278,7 +375,7 @@ export class ProcessDetailComponent implements OnInit {
   // === HELPER METHODS ===
 
   /**
-   * Solo el ESTUDIANTE dueño del proceso puede cargar documentos.
+   * Solo el ESTUDIANTE dueÃ±o del proceso puede cargar documentos.
    * Admin, Asesor y Secretario supervisan/aprueban, NO cargan documentos.
    */
   canUploadDocuments(): boolean {
@@ -287,7 +384,7 @@ export class ProcessDetailComponent implements OnInit {
     const user = this.currentUser();
     if (!proc || !user) return false;
 
-    // Solo el estudiante dueño puede cargar documentos
+    // Solo el estudiante dueÃ±o puede cargar documentos
     if (role === UserRole.STUDENT) {
       const isOwner = proc.studentId === user.sub
         || proc.student?.id === user.sub;
@@ -303,7 +400,7 @@ export class ProcessDetailComponent implements OnInit {
     const role = this.userRole();
     const proc = this.process();
     if (!proc) return false;
-    // El proceso debe estar ACTIVE o IN_REVIEW para poder enviar documentos a revisión
+    // El proceso debe estar ACTIVE o IN_REVIEW para poder enviar documentos a revisiÃ³n
     const processAllowsReview = proc.status === ProcessStatus.ACTIVE || proc.status === ProcessStatus.IN_REVIEW;
     return (role === UserRole.SECRETARY || role === UserRole.ADMIN || role === UserRole.SUPERADMIN)
       && req.status === DocumentStatus.PENDIENTE
@@ -373,7 +470,7 @@ export class ProcessDetailComponent implements OnInit {
   }
 
   /**
-   * Verifica si hay al menos una aprobación en todo el proceso (para mostrar la pestaña).
+   * Verifica si hay al menos una aprobaciÃ³n en todo el proceso (para mostrar la pestaÃ±a).
    */
   hasAnyApprovals(): boolean {
     const proc = this.process();
@@ -382,7 +479,7 @@ export class ProcessDetailComponent implements OnInit {
   }
 
   /**
-   * Verifica si un RequirementInstance tiene aprobación académica (del asesor).
+   * Verifica si un RequirementInstance tiene aprobaciÃ³n acadÃ©mica (del asesor).
    */
   hasAcademicApproval(req: RequirementInstance): boolean {
     if (!req.approvals) return false;
@@ -392,7 +489,7 @@ export class ProcessDetailComponent implements OnInit {
   }
 
   /**
-   * Verifica si un RequirementInstance tiene aprobación administrativa (de secretaría).
+   * Verifica si un RequirementInstance tiene aprobaciÃ³n administrativa (de secretarÃ­a).
    */
   hasAdministrativeApproval(req: RequirementInstance): boolean {
     if (!req.approvals) return false;
@@ -402,10 +499,22 @@ export class ProcessDetailComponent implements OnInit {
   }
 
   /**
-   * Obtiene las aprobaciones de un RequirementInstance específico.
+   * Obtiene las aprobaciones de un RequirementInstance especÃ­fico.
    */
   getRequirementApprovals(req: RequirementInstance): Approval[] {
     return req.approvals || [];
+  }
+
+  getRequirementProgress(req: RequirementInstance): number {
+    const progressByStatus: Record<DocumentStatus, number> = {
+      [DocumentStatus.POR_CARGAR]: 0,
+      [DocumentStatus.PENDIENTE]: 20,
+      [DocumentStatus.EN_REVISION]: 60,
+      [DocumentStatus.EN_CORRECCION]: 40,
+      [DocumentStatus.APROBADO]: 80,
+      [DocumentStatus.FINALIZADO]: 100,
+    };
+    return progressByStatus[req.status] ?? 0;
   }
 
   formatDate(dateString: string): string {
@@ -420,3 +529,4 @@ export class ProcessDetailComponent implements OnInit {
     }
   }
 }
+

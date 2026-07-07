@@ -223,7 +223,7 @@
 }
 
 .row-highlighted {
-  background-color: var(--color-status-pendiente);
+  background-color: rgba(247, 191, 0, 0.08);
 }
 
 .table-row td {
