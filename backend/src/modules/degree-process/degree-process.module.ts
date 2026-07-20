@@ -4,6 +4,7 @@ import { DegreeProcessService } from './degree-process.service';
 import { DegreeProcessController } from './degree-process.controller';
 import { SharedModule } from '../../shared/shared.module';
 import { IntegrationModule } from '../integration/integration.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 /**
  * Degree Process Module
@@ -20,6 +21,8 @@ import { IntegrationModule } from '../integration/integration.module';
     ConfigModule,
     SharedModule, // Provides PrismaService, guards, decorators, etc.
     IntegrationModule,
+    // Notifications used to create alerts for process lifecycle events
+    NotificationsModule,
   ],
   providers: [DegreeProcessService],
   controllers: [DegreeProcessController],

@@ -1,4 +1,10 @@
-* {
+/* Limit transitions to interactive elements to improve performance */
+a,
+button,
+.stat-card,
+.process-card,
+.quick-action-card,
+.nav-item {
   transition:
     background-color 0.25s ease,
     color 0.25s ease,
@@ -6,9 +12,8 @@
 }
 
 .dashboard {
-  background: linear-gradient(135deg, #2b7db3 0%, #7cb532 100%);
+  background: linear-gradient(white);
   padding: 2rem;
-  box-shadow: 0 0 20px rgba(43, 125, 179, 0.3);
   animation: glowPulse 3s ease-in-out infinite;
 }
 
@@ -22,12 +27,11 @@
 .greeting {
   font-size: 1.7rem;
   font-weight: 700;
-  color: white;
   margin-bottom: 0.2rem;
 }
 .role-label {
   font-size: 0.9rem;
-  color: var(--color-text-secondary);
+  color: black;
   font-style: italic;
 }
 
@@ -46,14 +50,13 @@
 }
 
 .action-btn.primary {
-  background: linear-gradient(135deg, var(--color-azul), var(--color-verde));
+  background: var(--color-azul);
   color: white;
 }
 
 .action-btn.primary:hover {
-  box-shadow:
-    0 0 12px var(--color-azul),
-    0 0 24px var(--color-verde);
+  background: var(--color-azul-claro);
+  box-shadow: 0 0 12px rgba(124, 181, 50, 0.25);
   transform: translateY(-2px);
 }
 
@@ -76,11 +79,6 @@
   margin-bottom: 1rem;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 .empty-state {
   display: flex;
@@ -127,15 +125,16 @@
 }
 
 .stat-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-bg);
+  border: 3px solid rgba(124, 181, 50, 0.18);
   border-radius: 14px;
   padding: 1.25rem;
   transition: all 0.3s ease;
 }
 .stat-card:hover {
   border-color: var(--color-azul);
-  box-shadow: 0 0 20px rgba(0, 136, 255, 0.989);
+  box-shadow: 0 0 20px rgba(46, 148, 244, 0.18);
+  background: var(--color-card-bg-dark);
   transform: translateY(-2px);
 }
 
@@ -173,11 +172,11 @@
 .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--color-azul);
+  color: var(--color-card-text);
 }
 .stat-label {
   font-size: 0.8rem;
-  color: var(--color-text-secondary);
+  color: var(--color-card-text-muted);
   margin-top: 0.125rem;
 }
 
@@ -245,7 +244,7 @@
   padding: 1.25rem;
   background: var(--color-bg);
   border-radius: 14px;
-  border: 1px solid var(--color-border);
+  border: 3px solid var(--color-azul);
   text-decoration: none;
   transition: all 0.3s ease;
 }
@@ -253,8 +252,8 @@
 .process-card:hover {
   border-color: var(--color-azul);
   box-shadow:
-    0 0 12px var(--color-azul),
-    0 0 24px var(--color-verde);
+    0 0 10px var(--color-azul),
+    0 0 20px var(--color-azul-claro);
 }
 
 .process-card-header {
@@ -310,18 +309,6 @@
 .status-unknown {
   background: rgba(255, 255, 255, 0.15);
   color: var(--color-rojo);
-}
-.status-approved {
-  background: var(--color-bg-secondary);
-  color: var(--color-verde-oscuro);
-}
-.status-completed {
-  background: var(--color-bg-secondary);
-  color: var(--color-verde-oscuro);
-}
-.status-archived {
-  background: var(--color-border-light);
-  color: var(--color-text-secondary);
 }
 
 .process-title {
@@ -418,7 +405,8 @@
 .chart-card {
   background: var(--color-bg);
   border-radius: 14px;
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--color-card-border-dark);
+  transition: all 0.3s ease;
   padding: 1.5rem;
 }
 
@@ -455,7 +443,7 @@
 }
 .bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-azul), var(--color-verde));
+  background: var(--color-verde);
   border-radius: 4px;
   transition: width 0.5s ease;
   min-width: 4px;
@@ -529,7 +517,7 @@
   padding: 1.5rem;
   background: var(--color-bg);
   border-radius: 14px;
-  border: 1px solid var(--color-border);
+  border: 3px solid var(--color-azul);
   text-decoration: none;
   transition: all 0.3s ease;
   color: var(--color-text-secondary);
@@ -538,9 +526,10 @@
 }
 .quick-action-card:hover {
   border-color: var(--color-azul);
-  background: linear-gradient(135deg, var(--color-azul) 0%, var(--color-azul-claro) 140%);
   transform: translateY(-2px);
-  box-shadow: 0 0 12px rgba(30, 136, 229, 0.3);
+  box-shadow:
+    0 0 10px var(--color-azul),
+    0 0 20px var(--color-azul-claro);
   color: white;
 }
 
@@ -798,11 +787,11 @@
     color: var(--color-text);
   }
 
-   .greeting{
-    color: white;
-   }
-   
-  .dashboard-header{
+  .greeting {
+    color: black;
+  }
+
+  .dashboard-header {
     color: var(--color-azul);
   }
 
@@ -811,9 +800,9 @@
   .review-list,
   .chart-card,
   .quick-action-card {
-    background-color: var(--color-bg-secondary);
-    border-color: var(--color-border);
-    color: var(--color-text);
+    background-color: var(--color-card-bg-dark);
+    border-color: var(--color-card-border-dark);
+    color: white;
   }
 
   .stat-value,
@@ -844,17 +833,18 @@
     background: var(--color-border);
   }
   .bar-fill {
-    background: linear-gradient(90deg, var(--color-azul), var(--color-verde));
+    background: var(--color-verde);
   }
 
   .quick-action-card i {
     color: var(--color-azul);
   }
   .quick-action-card:hover {
-    border-color: var(--color-azul);
-    background: var(--color-azul-claro);
+    border-color: rgb(53, 102, 248);
+    background: rgba(4, 18, 90, 0.886);
     color: white;
     box-shadow:
-      0 0 22px var(--color-azul)
+      0 0 6px var(--color-azul),
+      0 0 14px var(--color-azul-claro);
   }
 }

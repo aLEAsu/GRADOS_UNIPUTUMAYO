@@ -40,7 +40,7 @@ plataforma-grados-utp/
 - **Docker** y **Docker Compose** (para ejecución en contenedores)
 - **Node.js** 18+ (para desarrollo local)
 - **PostgreSQL** 14+ (si se ejecuta sin Docker)
-- **npm** o **yarn**
+- **pnpm** (Recomendado; el proyecto incluye arhcivos de workspace y configuracion para pnpm)
 
 ## Instalación y Setup
 
@@ -76,8 +76,13 @@ cp backend/.env.example backend/.env
 ### 3. Instalación de Dependencias (Desarrollo Local)
 
 ```bash
+# Instalar dependencias del backend
 cd backend
-npm install
+pnpm install
+
+# Instalar dependencias del frontend
+cd ../frontend
+pnpm install
 ```
 
 ### 4. Inicializar Base de Datos
@@ -93,10 +98,10 @@ sleep 10
 
 # Aplicar migraciones
 cd backend
-npm run prisma:migrate:dev
+pnpm run prisma:migrate:dev
 
 # Ejecutar seed para llenar datos iniciales
-npm run prisma:seed
+pnpm run prisma:seed
 ```
 
 #### Opción B: Desarrollo Local
@@ -107,23 +112,30 @@ psql -U itp_admin -d plataforma_grados
 
 # En el backend
 # Usarlos dependiendo de si va a correr de forma local o entorno real
-npm run prisma:migrate:dev // npm run prisma:migrate:prod
-npm run prisma:seed
+pnpm run prisma:migrate:dev # o pnpm run prisma:migrate:prod
+pnpm run prisma:seed
 ```
 
 ## Desarrollo
 
 ## Inicializar todo el entorno de desarollo (Produccion-Local)
-npm run setup:dev
+
+```bash
+cd backend
+pnpm run setup:dev
+```
 
 - Esto hará:
 - prisma generate → genera el cliente Prisma.
 - prisma migrate dev --env-file .env.development → aplica migraciones en tu DB de desarrollo.
 - ts-node prisma/seed.ts → ejecuta el script de seed para poblar datos iniciales.
 
-
 ## Inicializar en Desarrollo (Entorno Real)
-npm run setup:prod
+
+```bash
+cd backend
+pnpm run setup:prod
+```
 
 - Genera cliente Prisma, aplica migraciones en .env.production y corre el seed.
 
@@ -138,9 +150,16 @@ npm run setup:prod
 cd backend
 
 # Con reloading automático
-npm run start:dev
+pnpm run start:dev
 
 # El servidor estará disponible en http://localhost:3000
+```
+
+### Ejecutar Frontend en Desarrollo 
+
+```bash 
+cd frontend
+pnpm start
 ```
 
 ### Ejecutar en Docker Compose
@@ -164,7 +183,7 @@ Con `docker-compose.dev.yml`:
 - **MailHog**: http://localhost:8025
   - Visualizar emails enviados en desarrollo
 
-- **Prisma Studio**: Ejecutar `npm run prisma:studio` (requiere backend en ejecución)
+- **Prisma Studio**: Ejecutar `pnpm run prisma:studio` (requiere backend en ejecución)
 
 ## Migraciones y Seeds
 
@@ -172,14 +191,14 @@ Con `docker-compose.dev.yml`:
 
 ```bash
 cd backend
-npm run prisma:migrate:dev -- --name descripcion_cambio
+pnpm run prisma:migrate:dev -- --name descripcion_cambio
 ```
 
 ### Ejecutar Seeds
 
 ```bash
 cd backend
-npm run prisma:seed
+pnpm run prisma:seed
 ```
 
 El seed incluye:
@@ -196,16 +215,16 @@ El seed incluye:
 
 ```bash
 cd backend
-npm run test
-npm run test:watch      # Con watch mode
-npm run test:cov        # Con coverage report
+pnpm run test
+pnpm run test:watch      # Con watch mode
+pnpm run test:cov        # Con coverage report
 ```
 
 ### E2E Tests
 
 ```bash
 cd backend
-npm run test:e2e
+pnpm run test:e2e
 ```
 ## Despliegue Render
 - Frontend: https://grados-uniputumayo-1.onrender.com
@@ -331,13 +350,19 @@ DATABASE_LOGGING=true
 
 ```bash
 # Backend
-npm run build              # Compilar
-npm run start              # Ejecutar en producción
-npm run start:dev          # Ejecutar en desarrollo
-npm run lint               # Linting
-npm run format             # Formatear código
-npm run prisma:studio      # Abrir Prisma Studio
-npm run prisma:generate    # Generar cliente Prisma
+pnpm run build              # Compilar
+pnpm run start              # Ejecutar en producción
+pnpm run start:dev          # Ejecutar en desarrollo
+pnpm run lint               # Linting
+pnpm run format             # Formatear código
+pnpm run prisma:studio      # Abrir Prisma Studio
+pnpm run prisma:generate    # Generar cliente Prisma
+
+ # Frontend
+ cd frontend                # Iniciar Angular en desarrollo
+ pnpm start                 # Compilar Angular
+ pnpm run build             # Compilar Angular para producciòn 
+ pnpm run build:prod
 
 # Docker
 docker-compose up -d                              # Iniciar producción
@@ -364,7 +389,8 @@ GET /api/v1/health
 docker-compose logs -f backend
 
 # Local
-npm run start:dev  # Los logs aparecen en consola
+cd backend
+pnpm run start:dev  # Los logs aparecen en consola
 ```
 
 ### Base de Datos
@@ -392,7 +418,8 @@ kill -9 <PID>
 
 ```bash
 # Resetear base de datos (CUIDADO: borra datos)
-npm run prisma:migrate:dev -- --skip-generate
+cd backend
+pnpm run prisma:migrate:dev -- --skip-generate
 ```
 
 ### Cambios en Dockerfile no se reflejan
@@ -408,7 +435,7 @@ Para contribuir:
 
 1. Crear rama desde `main`
 2. Realizar cambios siguiendo estándares del proyecto
-3. Ejecutar tests: `npm run test`
+3. Ejecutar tests: `cd backend && pnpm run test`
 4. Commit con mensajes descriptivos
 5. Push y crear Pull Request
 

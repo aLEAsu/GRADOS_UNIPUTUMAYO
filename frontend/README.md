@@ -37,13 +37,13 @@ src/
 ## Installation
 
 ```bash
-npm install
+pnpm install
 ```
 
 ## Development
 
 ```bash
-npm start
+pnpm start
 ```
 
 Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
@@ -53,13 +53,13 @@ Navigate to `http://localhost:4200/`. The application will automatically reload 
 ### Development Build
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 ### Production Build
 
 ```bash
-npm run build:prod
+pnpm run build:prod
 ```
 
 The build artifacts will be stored in the `dist/plataforma-grados-utp/` directory.
@@ -67,7 +67,7 @@ The build artifacts will be stored in the `dist/plataforma-grados-utp/` director
 ## Testing
 
 ```bash
-npm test
+pnpm test
 ```
 
 ## Code Quality
@@ -75,7 +75,7 @@ npm test
 ### Linting
 
 ```bash
-npm run lint
+pnpm run lint
 ```
 
 ## Features

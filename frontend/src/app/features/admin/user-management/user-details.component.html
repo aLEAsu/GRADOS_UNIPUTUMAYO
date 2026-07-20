@@ -1,0 +1,57 @@
+<!-- Archivo : user-details.component.html
+   Descripción : Plantilla HTML para el componente de detalles del usuario. 
+   Muestra información detallada del usuario seleccionado, incluyendo nombre, correo electrónico, rol, estado y fecha de registro. 
+   También proporciona un botón para volver a la lista de usuarios. --> 
+
+<div class="user-details-container">
+  <button class="back-btn" (click)="goBack()">← Volver</button>
+
+  <div *ngIf="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Cargando usuario...</p>
+  </div>
+
+  <div *ngIf="error && !loading" class="error">{{ error }}</div>
+  <pre *ngIf="rawError && !loading" class="error-details">{{ rawError | json }}</pre>
+
+  <div *ngIf="user && !loading" class="card">
+    <div class="card-header">
+      <div class="avatar-large">{{ (user.firstName.charAt(0) || '') + (user.lastName.charAt(0) || '') }}</div>
+      <div class="user-meta">
+        <h2>{{ user.firstName }} {{ user.lastName }}</h2>
+        <p class="muted">{{ user.email }}</p>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="info-row">
+        <span class="label">Rol</span>
+        <span class="value">{{ getRoleLabel(user.role) }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Estado</span>
+        <span class="value">{{ user.isActive ? 'Activo' : 'Inactivo' }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Fecha registro</span>
+        <span class="value">{{ user.createdAt | date:'mediumDate' }}</span>
+      </div>
+
+      <div class="info-row">
+        <span class="label">Teléfono</span>
+        <span class="value">{{ user.phone || '-' }}</span>
+      </div>
+
+      <div class="info-row">
+        <span class="label">Código/Documento</span>
+        <span class="value" *ngIf="user.role === 'STUDENT'">{{ user.studentProfile?.studentCode || '-' }}</span>
+        <span class="value" *ngIf="user.role === 'ADVISOR'">{{ user.advisorProfile?.department || '-' }}</span>
+        <span class="value" *ngIf="user.role !== 'STUDENT' && user.role !== 'ADVISOR'">{{ user.studentProfile?.studentCode || '-' }}</span>
+      </div>
+
+      <div class="actions">
+        <button class="btn-primary" (click)="goBack()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -80,11 +80,23 @@ export class AdminReviewsComponent implements OnInit {
   sendToReview(item: any): void {
     if (this.processingId) return;
     const reqId = item.requirementInstanceId || item.id;
+
+    if (!item.documentVersionId) {
+      this.validationErrors[item.id] = 'No hay una versión de documento disponible para enviar a revisión.';
+      return;
+    }
+
+    const observations = (this.observationTexts[item.id] || '').trim() || 'Se solicita revisión administrativa.';
     this.processingId = reqId;
 
-    this.reviewService.sendToReview(reqId).subscribe({
+    this.reviewService.createAdministrativeApproval(reqId, {
+      decision: ApprovalDecision.REVISION_REQUESTED,
+      observations,
+      documentVersionId: item.documentVersionId
+    }).subscribe({
       next: () => {
         this.processingId = null;
+        this.observationTexts[item.id] = '';
         this.loadReviews();
       },
       error: (err) => {

@@ -1,0 +1,158 @@
+/* Archivo : user-details.component.css
+   Descripción : Estilos para el componente de detalles del usuario.
+*/
+.user-details-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+.back-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-azul);
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+.card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 6px 18px rgba(6,19,30,0.35);
+}
+.card-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.avatar-large {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-azul), var(--color-verde));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 20px;
+}
+.user-meta h2 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+}
+.muted {
+  color: var(--color-text-secondary);
+}
+.card-body {
+  display: grid;
+  gap: 8px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--color-border);
+}
+.info-row .label {
+  font-weight: 600;
+  color: var(--color-text);
+}
+.info-row .value {
+  color: var(--color-text-secondary);
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+.btn-primary {
+  background: var(--color-azul);
+  color: white;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+}
+
+.error {
+  color: var(--color-rojo);
+  margin: 12px 0;
+}
+.error-details {
+  background: rgba(0,0,0,0.04);
+  border: 1px solid var(--color-border);
+  padding: 12px;
+  border-radius: 6px;
+  overflow: auto;
+  max-height: 220px;
+}
+
+/* Tablet and Mobile (768px and below) */
+@media (max-width: 768px) {
+  .user-details-container {
+    padding: 1rem;
+  }
+
+  .card {
+    padding: 1.5rem;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .avatar-large {
+    width: 56px;
+    height: 56px;
+    font-size: 18px;
+  }
+
+  .user-meta h2 {
+    font-size: 18px;
+  }
+
+  .info-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .btn-primary {
+    width: 100%;
+  }
+}
+
+/* Mobile (480px and below) */
+@media (max-width: 480px) {
+  .user-details-container {
+    padding: 0.75rem;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+
+  .avatar-large {
+    width: 48px;
+    height: 48px;
+    font-size: 16px;
+  }
+
+  .user-meta h2 {
+    font-size: 16px;
+  }
+
+  .btn-primary {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+  }
+}

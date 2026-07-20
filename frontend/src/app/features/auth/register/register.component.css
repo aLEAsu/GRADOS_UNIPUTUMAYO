@@ -7,7 +7,7 @@
 
 .auth-brand {
   flex: 1;
-  background: linear-gradient(135deg, #2b7db3 0%, #7cb532 50%, #b8d973 100%);
+  background: var(--color-azul);
   color: white;
   display: flex;
   flex-direction: column;
@@ -58,7 +58,7 @@
 
 .brand-subtitle {
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: white;
   margin-bottom: 3rem;
   line-height: 1.6;
 }
@@ -287,7 +287,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.8rem 1.5rem;
-  background: linear-gradient(135deg, #2b7db3 0%, #7cb532 100%);
+  background: linear-gradient(135deg, var(--color-azul-claro) 0%, var(--color-verde) 100%);
   color: white;
   border: none;
   border-radius: 10px;
@@ -300,7 +300,7 @@
   animation: pulse 1.8s infinite;
 }
 .submit-btn:hover {
-  background: linear-gradient(135deg, #1f5c8f 0%, #6a9f2a 100%);
+  background: linear-gradient(135deg, var(--color-azul-darker) 0%, var(--color-verde) 100%);
   box-shadow:
     0 0 12px rgba(43, 125, 179, 0.4),
     0 0 24px rgba(124, 181, 50, 0.3);
@@ -321,11 +321,6 @@
   animation: spin 0.6s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 /* Links y responsive*/
 .login-link {
@@ -349,7 +344,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #2b7db3 0%, #7cb532 50%, #b8d973 100%);
+  background: linear-gradient(135deg, var(--color-azul-claro) 0%, var(--color-verde) 50%, var(--color-verde-suave) 100%);
   color: #fff;
   padding: 2rem;
   text-align: center;

@@ -7,6 +7,7 @@ import {
   IsInt,
   Min,
   Max,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -66,4 +67,8 @@ export class RegisterDto {
   @Max(12)
   @Type(() => Number)
   semester?: number;
+
+  @ApiProperty({ description: 'Acepta la política de uso de datos', example: true })
+  @IsBoolean()
+  acceptPolicy: boolean;
 }

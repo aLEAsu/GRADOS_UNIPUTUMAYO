@@ -10,7 +10,7 @@ import { AdminService } from '../../../core/services/admin.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './user-management.component.html',
-  styleUrl: './user-management.component.css'
+  styleUrls: ['./user-management.component.css']
 })
 export class UserManagementComponent implements OnInit {
   users = signal<User[]>([]);

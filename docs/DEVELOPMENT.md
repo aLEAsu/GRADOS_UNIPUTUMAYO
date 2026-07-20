@@ -16,20 +16,27 @@ Guía para configurar el ambiente de desarrollo local y directrices de codificac
 #### Windows/Mac
 1. Descargar desde https://nodejs.org/ (LTS recomendado)
 2. Ejecutar instalador
-3. Verificar instalación:
+3. Instalar pnpm:
+   ```bash
+   corepack enable
+   corepack prepare pnpm@latest --activate
+   ```
+4. Verificar instalación:
    ```bash
    node --version
-   npm --version
+   pnpm --version
    ```
 
 #### Linux (Ubuntu/Debian)
 ```bash
 sudo apt update
 sudo apt install nodejs npm
+corepack enable
+corepack prepare pnpm@latest --activate
 
 # Verificar versión
 node --version
-npm --version
+pnpm --version
 ```
 
 ### Clonar Repositorio
@@ -42,10 +49,12 @@ cd plataforma-grados-utp/backend
 ### Instalar Dependencias
 
 ```bash
-npm install
+cd backend
+pnpm install
 
-# O con versión exacta (recomendado)
-npm ci
+# Para frontend
+cd ../frontend
+pnpm install
 ```
 
 ### Configurar Base de Datos
@@ -60,8 +69,8 @@ docker-compose -f docker-compose.dev.yml up -d
 sleep 10
 
 # En la carpeta backend
-npm run prisma:migrate:dev
-npm run prisma:seed
+pnpm run prisma:migrate:dev
+pnpm run prisma:seed
 ```
 
 #### Opción B: PostgreSQL Local
@@ -80,14 +89,15 @@ CREATE ROLE itp_admin WITH LOGIN PASSWORD 'itp_dev_2024';
 CREATE DATABASE plataforma_grados OWNER itp_admin;
 
 # En backend
-npm run prisma:migrate:dev
-npm run prisma:seed
+pnpm run prisma:migrate:dev
+pnpm run prisma:seed
 ```
 
 ### Iniciar Servidor de Desarrollo
 
 ```bash
-npm run start:dev
+cd backend
+pnpm run start:dev
 
 # El servidor estará disponible en http://localhost:3000
 # Reloading automático cuando cambias archivos

@@ -10,9 +10,11 @@ import { User, UserRole, JwtPayload } from '../models/user.model';
 export class AuthService {
   private readonly apiUrl = `${environment.apiUrl}/auth`;
   private currentUserSignal = signal<JwtPayload | null>(null);
+  private currentFullUserSignal = signal<any | null>(null);
   private tokenRefreshTimer: any;
 
   readonly currentUser = this.currentUserSignal.asReadonly();
+  readonly currentFullUser = this.currentFullUserSignal.asReadonly();
   readonly isAuthenticated = computed(() => !!this.currentUserSignal());
   readonly userRole = computed(() => this.currentUserSignal()?.role ?? null);
 
@@ -41,6 +43,7 @@ export class AuthService {
     phone?: string;
     studentCode: string;
     program: string;
+    acceptPolicy: boolean;
   }): Observable<User> {
     return this.http.post<User>(`${this.apiUrl}/register`, data);
   }
@@ -79,6 +82,15 @@ export class AuthService {
     return this.http.get<JwtPayload>(`${this.apiUrl}/profile`);
   }
 
+  /**
+   * Get full current user profile (includes phone, studentProfile, advisorProfile, etc)
+   */
+  getMyFullProfile(): Observable<any> {
+    return this.http.get<any>(`${environment.apiUrl}/users/me`).pipe(
+      tap(user => this.currentFullUserSignal.set(user))
+    );
+  }
+
   googleLogin(): void {
     window.location.href = `${environment.apiUrl}/auth/google`;
   }
@@ -90,6 +102,8 @@ export class AuthService {
     if (payload) {
       this.currentUserSignal.set(payload);
       this.scheduleTokenRefresh();
+      // load full profile so the app can create any onboarding notifications or UI updates
+      this.getMyFullProfile().subscribe({ error: () => {} });
     }
   }
 
@@ -127,6 +141,8 @@ export class AuthService {
     if (payload) {
       this.currentUserSignal.set(payload);
       this.scheduleTokenRefresh();
+      // populate full profile for UI checks
+      this.getMyFullProfile().subscribe({ error: () => {} });
     }
   }
 
@@ -137,6 +153,8 @@ export class AuthService {
       if (payload && !this.isTokenExpired(payload)) {
         this.currentUserSignal.set(payload);
         this.scheduleTokenRefresh();
+        // try to load full profile for completeness checks
+        this.getMyFullProfile().subscribe({ error: () => {} });
       } else {
         this.clearAuth();
       }

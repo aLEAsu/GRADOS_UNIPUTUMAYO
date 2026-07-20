@@ -6,6 +6,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { IntegrationService } from '../integration/integration.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '@prisma/client';
 import { StudentEligibilityResult } from '../integration/dto/external-student.dto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../shared/prisma/prisma.service';
@@ -41,6 +43,7 @@ export class DegreeProcessService {
     private prisma: PrismaService,
     private configService: ConfigService,
     private integrationService: IntegrationService,
+    private notificationsService: NotificationsService,
   ) {
     this.maxActiveProcessesPerAdvisor =
       this.configService.get('degree.maxActiveProcessesPerAdvisor') || 10;
@@ -236,6 +239,36 @@ export class DegreeProcessService {
     });
 
     this.logger.log(`Degree process created: ${process.id}`);
+
+    // Create notifications: inform student and staff
+    try {
+      await this.notificationsService.createNotification(
+        process.student.id,
+        NotificationType.GENERAL,
+        'Tu proceso fue creado',
+        `Tu proceso "${process.title}" se ha creado correctamente.`,
+        { processId: process.id, target: `/process/${process.id}` },
+      );
+
+      const staff = await this.prisma.user.findMany({
+        where: { role: { in: ['SECRETARY', 'ADMIN', 'SUPERADMIN'] } },
+        select: { id: true },
+      });
+
+      for (const s of staff) {
+        // Use the standard process detail route so staff can open the exact process
+        await this.notificationsService.createNotification(
+          s.id,
+          NotificationType.GENERAL,
+          'Nuevo proceso creado',
+          `El estudiante ${process.student.firstName} ${process.student.lastName} creó el proceso "${process.title}".`,
+          { processId: process.id, target: `/process/${process.id}` },
+        );
+      }
+    } catch (err) {
+      this.logger.warn('Failed to create process notifications: ' + err.message);
+    }
+
     return process;
   }
 
@@ -338,6 +371,9 @@ export class DegreeProcessService {
       where: { advisorId: advisorUserId },
       include: {
         student: {
+          select: { id: true, email: true, firstName: true, lastName: true },
+        },
+        advisor: {
           select: { id: true, email: true, firstName: true, lastName: true },
         },
         modality: { select: { id: true, code: true, name: true } },
@@ -565,6 +601,30 @@ export class DegreeProcessService {
     this.logger.log(
       `Advisor ${assignAdvisorDto.advisorUserId} assigned to process ${processId}`,
     );
+
+    // Notify advisor and student about assignment
+    try {
+      if (updated.advisor && updated.advisor.id) {
+        await this.notificationsService.createNotification(
+          updated.advisor.id,
+          NotificationType.GENERAL,
+          'Se te asignó un proceso',
+          `Se te asignó el proceso "${updated.title || ''}" del estudiante ${updated.student.firstName} ${updated.student.lastName}.`,
+          { processId: updated.id, target: `/process/${updated.id}` },
+        );
+      }
+
+      await this.notificationsService.createNotification(
+        updated.student.id,
+        NotificationType.GENERAL,
+        'Asesor asignado',
+        `Se te asignó el asesor ${updated.advisor.firstName} ${updated.advisor.lastName} para tu proceso.`,
+        { processId: updated.id, target: `/process/${updated.id}` },
+      );
+    } catch (err) {
+      this.logger.warn('Failed to create advisor-assignment notifications: ' + err.message);
+    }
+
     return updated;
   }
 
@@ -628,10 +688,35 @@ export class DegreeProcessService {
           select: { id: true, email: true, firstName: true, lastName: true },
         },
         modality: { select: { id: true, code: true, name: true } },
+        advisor: { select: { id: true, firstName: true, lastName: true } },
       },
     });
 
     this.logger.log(`Process activated: ${processId}`);
+
+    // Notify interested parties: advisor and student
+    try {
+      if (updated.advisor && updated.advisor.id) {
+        await this.notificationsService.createNotification(
+          updated.advisor.id,
+          NotificationType.GENERAL,
+          'Proceso activado',
+          `El estudiante ${updated.student.firstName} ${updated.student.lastName} activó el proceso "${updated.title || ''}".`,
+          { processId: updated.id, target: `/process/${updated.id}` },
+        );
+      }
+
+      await this.notificationsService.createNotification(
+        updated.student.id,
+        NotificationType.GENERAL,
+        'Proceso enviado',
+        `Tu proceso "${updated.title || ''}" ha sido enviado y está en proceso.`,
+        { processId: updated.id, target: `/process/${updated.id}` },
+      );
+    } catch (err) {
+      this.logger.warn('Failed to create activation notifications: ' + err.message);
+    }
+
     return updated;
   }
 
@@ -860,33 +945,87 @@ export class DegreeProcessService {
         allApproved &&
         process.status === ProcessStatus.IN_REVIEW
       ) {
-        await this.prisma.degreeProcess.update({
+        const updated = await this.prisma.degreeProcess.update({
           where: { id: processId },
           data: {
             status: ProcessStatus.APPROVED,
           },
+          include: {
+            student: { select: { id: true, firstName: true, lastName: true } },
+            advisor: { select: { id: true, firstName: true, lastName: true } },
+          },
         });
-
+ 
         this.logger.log(
           `Process auto-transitioned to APPROVED: ${processId}`,
         );
-      }
 
+        // Notify student and advisor
+        try {
+          await this.notificationsService.createNotification(
+            updated.student.id,
+            NotificationType.GENERAL,
+            'Proceso aprobado',
+            `Tu proceso "${updated.title || ''}" ha sido aprobado.`,
+            { processId: updated.id, target: `/process/${updated.id}` },
+          );
+
+          if (updated.advisor && updated.advisor.id) {
+            await this.notificationsService.createNotification(
+              updated.advisor.id,
+              NotificationType.GENERAL,
+              'Proceso aprobado',
+              `El proceso del estudiante ${updated.student.firstName} ${updated.student.lastName} ha sido aprobado.`,
+              { processId: updated.id, target: `/process/${updated.id}` },
+            );
+          }
+        } catch (err) {
+          this.logger.warn('Failed to create approval notifications: ' + err.message);
+        }
+      }
+ 
       // Auto-transition to IN_REVIEW if all requirements uploaded
       if (
         allUploaded &&
         process.status === ProcessStatus.ACTIVE
       ) {
-        await this.prisma.degreeProcess.update({
+        const updated = await this.prisma.degreeProcess.update({
           where: { id: processId },
           data: {
             status: ProcessStatus.IN_REVIEW,
           },
+          include: {
+            student: { select: { id: true, firstName: true, lastName: true } },
+            advisor: { select: { id: true, firstName: true, lastName: true } },
+          },
         });
-
+ 
         this.logger.log(
           `Process auto-transitioned to IN_REVIEW: ${processId}`,
         );
+
+        // Notify student and advisor
+        try {
+          await this.notificationsService.createNotification(
+            updated.student.id,
+            NotificationType.GENERAL,
+            'Proceso en revisión',
+            `Tu proceso "${updated.title || ''}" está listo para revisión.`,
+            { processId: updated.id, target: `/process/${updated.id}` },
+          );
+
+          if (updated.advisor && updated.advisor.id) {
+            await this.notificationsService.createNotification(
+              updated.advisor.id,
+              NotificationType.GENERAL,
+              'Proceso para revisión',
+              `El proceso del estudiante ${updated.student.firstName} ${updated.student.lastName} está listo para revisión.`,
+              { processId: updated.id, target: `/process/${updated.id}` },
+            );
+          }
+        } catch (err) {
+          this.logger.warn('Failed to create in-review notifications: ' + err.message);
+        }
       }
     } catch (error) {
       this.logger.warn(

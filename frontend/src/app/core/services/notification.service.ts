@@ -31,6 +31,13 @@ export class NotificationService {
     );
   }
 
+  /** Create a notification for the current authenticated user */
+  createNotification(payload: { type: string; title: string; message: string; metadata?: Record<string, any> }) {
+    return this.http.post<any>(this.apiUrl, payload).pipe(
+      tap(() => this.loadNotifications().subscribe({ error: () => {} }))
+    );
+  }
+
   markAsRead(id: string): Observable<void> {
     return this.http.patch<void>(`${this.apiUrl}/${id}/read`, {}).pipe(
       tap(() => {
@@ -47,6 +54,22 @@ export class NotificationService {
         this.notificationsSignal.update(notifications =>
           notifications.map(n => ({ ...n, isRead: true }))
         );
+      })
+    );
+  }
+
+  deleteNotification(id: string) {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`).pipe(
+      tap(() => {
+        this.notificationsSignal.update(notifications => notifications.filter(n => n.id !== id));
+      })
+    );
+  }
+
+  deleteAllNotifications() {
+    return this.http.delete<any>(`${this.apiUrl}`).pipe(
+      tap(() => {
+        this.notificationsSignal.set([]);
       })
     );
   }

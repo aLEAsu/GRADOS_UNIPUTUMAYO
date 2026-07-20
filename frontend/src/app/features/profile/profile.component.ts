@@ -115,6 +115,8 @@ export class ProfileComponent implements OnInit {
         this.saving.set(false);
         this.editMode.set(false);
         this.successMessage.set('Perfil actualizado correctamente.');
+        // Refresh shared full profile so UI (layout banner) updates
+        this.authService.getMyFullProfile().subscribe({ error: () => {} });
       },
       error: (err) => {
         console.error('Error actualizando perfil:', err);
@@ -143,6 +145,8 @@ export class ProfileComponent implements OnInit {
         this.saving.set(false);
         this.successMessage.set('Perfil de estudiante creado correctamente.');
         this.loadProfile();
+        // Refresh global profile signal
+        this.authService.getMyFullProfile().subscribe({ error: () => {} });
       },
       error: (err) => {
         console.error('Error creando perfil de estudiante:', err);
