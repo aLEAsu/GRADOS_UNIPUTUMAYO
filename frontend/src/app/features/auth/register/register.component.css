@@ -7,7 +7,7 @@
 
 .auth-brand {
   flex: 1;
-  background: linear-gradient(135deg, #2b7db3 0%, #7cb532 50%, #b8d973 100%);
+  background: var(--color-azul);
   color: white;
   display: flex;
   flex-direction: column;
@@ -58,7 +58,7 @@
 
 .brand-subtitle {
   font-size: 1rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: white;
   margin-bottom: 3rem;
   line-height: 1.6;
 }
@@ -321,11 +321,6 @@
   animation: spin 0.6s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 /* Links y responsive*/
 .login-link {

@@ -4,7 +4,7 @@
   <div class="dashboard-header">
     <div>
       <h1 class="greeting">{{ getGreeting() }}, {{ currentUser()?.firstName }}</h1>
-      <p class="role-label">{{ getRoleLabel() }} - Plataforma de Grados ITP</p>
+      <p class="role-label">{{ getRoleLabel() }} - Plataforma de Grados</p>
     </div>
     @if (userRole() === UserRole.STUDENT) {
       <a routerLink="/process/new" class="action-btn primary">

@@ -126,9 +126,13 @@ export class LayoutComponent implements OnInit, OnDestroy {
 
   toggleSidebar(): void {
     this.sidebarCollapsed.update(v => !v);
+    this.mobileMenuOpen.set(false);
   }
 
   toggleMobileMenu(): void {
+    if(!this.mobileMenuOpen()) {
+      this.sidebarCollapsed.set(false);
+    }
     this.mobileMenuOpen.update(v => !v);
   }
 
