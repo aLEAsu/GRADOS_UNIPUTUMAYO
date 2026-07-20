@@ -57,7 +57,19 @@
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
+
+  /* Component-specific colors (cards / accents) */
+  --color-card-bg: #ffffff; /* default card bg */
+  --color-card-border: rgba(93, 143, 242, 0.18); /* soft blue border for cards */
+  --color-card-text: var(--color-azul);
+  --color-card-text-dark: #ffffff; /* readable text on dark card backgrounds */
+  --color-card-text-muted: var(--color-text-secondary); /* muted label text for cards */
+
+  /* Dark variants for cards / panels (used in dashboard dark presentation) */
+  --color-card-bg-dark: #021130;
+  --color-card-border-dark: rgba(93, 143, 242, 0.89);
 }
+
 
 /* Global Styles */
 html,
@@ -407,6 +419,9 @@ a:hover {
     --color-text-secondary: #d1d5db;
     --color-border: #374151;
     --color-border-light: #4b5563;
+    /* Use dark card text by default in dark mode */
+    --color-card-text: var(--color-card-text-dark);
+    --color-card-text-muted: #cbd5df;
   }
 
   body {
