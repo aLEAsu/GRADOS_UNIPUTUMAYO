@@ -41,7 +41,7 @@
   width: 40px;
   height: 40px;
   min-width: 40px;
-  background: #5d8ef2;
+  background: var(--color-logo-bg);
   border-radius: 10px;
   border: none;
   display: flex;
@@ -49,7 +49,7 @@
   justify-content: center;
   font-size: 1.25rem;
   color: white;
-  box-shadow: 0 4px 10px rgba(38, 203, 249, 0.727);
+  box-shadow: 0 4px 10px var(--color-logo-shadow);
 }
 .logo-icon i {
   font-size: 1.32rem; /* ligeramente más grande */
@@ -178,7 +178,7 @@
   align-items: center;
   justify-content: space-between;
   height: 64px;
-  background: #0943B5;
+  background: var(--color-header-bg);
   border-bottom: 2px solid var(--color-card-border);
   padding: 0 1.5rem;
   position: sticky;
@@ -284,7 +284,7 @@
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #2b7db3, #0d97f3);
+  background: linear-gradient(135deg, var(--color-azul-claro), var(--color-azul-darker));
   color: white;
   display: flex;
   align-items: center;

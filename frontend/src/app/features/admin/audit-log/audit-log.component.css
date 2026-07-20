@@ -30,7 +30,7 @@
   min-height: 100vh;
   margin: 0;
   padding: var(--spacing-xl);
-  background: linear-gradient(135deg, #2b7db3 0%, #7cb532 100%);
+  background: linear-gradient(135deg, var(--color-azul-claro) 0%, var(--color-verde) 100%);
 }
 
 /* Page Header */

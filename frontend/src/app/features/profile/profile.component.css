@@ -77,7 +77,7 @@
   width: 72px;
   height: 72px;
   border-radius: 18px;
-  background: linear-gradient(135deg, #2b7db3, #7cb532);
+  background: linear-gradient(135deg, var(--color-azul-claro), var(--color-verde));
   color: white;
   display: flex;
   align-items: center;
@@ -133,7 +133,7 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #2b7db3, #7cb532);
+  background: linear-gradient(135deg, var(--color-azul-claro), var(--color-verde));
   color: white;
 }
 .btn-primary:hover:not(:disabled) {

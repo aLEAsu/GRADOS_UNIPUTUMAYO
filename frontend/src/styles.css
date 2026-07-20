@@ -68,6 +68,12 @@
   /* Dark variants for cards / panels (used in dashboard dark presentation) */
   --color-card-bg-dark: #021130;
   --color-card-border-dark: rgba(93, 143, 242, 0.89);
+
+  /* Header / Logo specifics */
+  --color-header-bg: #0943B5;
+  --color-logo-bg: #5d8ef2;
+  --color-logo-shadow: rgba(38, 203, 249, 0.727);
+  --color-azul-darker: #1f5c8f;
 }
 
 

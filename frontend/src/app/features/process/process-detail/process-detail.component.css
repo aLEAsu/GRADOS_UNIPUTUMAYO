@@ -332,7 +332,7 @@
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #2b7db3, #7cb532);
+  background: linear-gradient(90deg, var(--color-azul-claro), var(--color-verde));
   transition: width 0.5s ease;
   border-radius: 10px;
 }
@@ -388,7 +388,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, #2b7db3, #7cb532);
+  background: linear-gradient(90deg, var(--color-azul-claro), var(--color-verde));
 }
 
 .tab-icon {
@@ -982,7 +982,7 @@
 
 /* Timeline completed marker */
 .timeline-marker.completed {
-  background: linear-gradient(135deg, #16a34a, #22c55e);
+  background: linear-gradient(135deg, var(--color-verde), var(--color-verde-claro));
 }
 
 /* Modal */
