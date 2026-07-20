@@ -1,4 +1,10 @@
-* {
+/* Limit transitions to interactive elements to improve performance */
+a,
+button,
+.stat-card,
+.process-card,
+.quick-action-card,
+.nav-item {
   transition:
     background-color 0.25s ease,
     color 0.25s ease,
