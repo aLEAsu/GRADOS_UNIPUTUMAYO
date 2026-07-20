@@ -71,14 +71,14 @@
         <tbody>
           @for (user of filteredUsers; track user.id) {
             <tr>
-              <td class="user-cell">
+              <td class="user-cell" data-label="Usuario">
                 <div class="user-info">
                   <div class="avatar">{{ getInitials(user) }}</div>
                   <span class="user-name">{{ user.firstName }} {{ user.lastName }}</span>
                 </div>
               </td>
-              <td class="email-cell">{{ user.email }}</td>
-              <td>
+              <td class="email-cell" data-label="Correo">{{ user.email }}</td>
+              <td data-label="Rol">
                 <select
                   class="role-select"
                   [ngModel]="user.role"
@@ -93,7 +93,7 @@
                   <span class="role-saving"><i class="pi pi-spin pi-spinner"></i></span>
                 }
               </td>
-              <td>
+              <td data-label="Estado">
                 <div class="status-toggle" (click)="toggleUserActive(user)">
                   <div class="toggle-track" [class.active]="user.isActive" [class.processing]="processingId === user.id">
                     <div class="toggle-thumb"></div>
@@ -101,8 +101,8 @@
                   <span class="status-label" [class.active]="user.isActive">{{ user.isActive ? 'Activo' : 'Inactivo' }}</span>
                 </div>
               </td>
-              <td class="date-cell">{{ user.createdAt | date:'mediumDate' }}</td>
-              <td>
+              <td class="date-cell" data-label="Fecha Registro">{{ user.createdAt | date:'mediumDate' }}</td>
+              <td data-label="Acciones">
                 <a [routerLink]="['/admin/users', user.id]" class="table-action" title="Ver detalles">
                   <i class="pi pi-eye"></i>
                 </a>

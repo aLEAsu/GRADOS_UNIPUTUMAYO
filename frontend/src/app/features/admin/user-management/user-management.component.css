@@ -17,18 +17,27 @@
   --spacing-sm: 8px;
   --spacing-md: 16px;
   --spacing-lg: 24px;
+  --shadow-sm: 0 12px 30px rgba(9, 97, 143, 0.18);
+  --shadow-md: 0 16px 36px rgba(9, 97, 143, 0.2);
 }
 
 .users-container {
   width: 100%;
   max-width: 1240px;
   margin: 0 auto;
-  padding: 28px 20px;
+  padding: clamp(1rem, 2vw, 2rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .page-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
   background: linear-gradient(135deg, var(--primary), #0b57a2);
-  padding: 28px 24px;
+  padding: clamp(1.25rem, 2vw, 1.75rem);
   border-radius: var(--radius-md);
   color: white;
   box-shadow: 0 12px 30px rgba(9, 97, 143, 0.18);
@@ -41,6 +50,7 @@
   font-weight: 700;
   line-height: 1.1;
   font-family: 'Roboto', sans-serif;
+  color: white; 
 }
 
 .subtitle {
@@ -76,7 +86,9 @@
   color: white;
   cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  transition:
+    background-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
 }
 
 .retry-btn:hover {
@@ -140,7 +152,9 @@
   font-size: 14px;
   font-family: 'Roboto', sans-serif;
   cursor: pointer;
-  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  transition:
+    border-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
 }
 
 .filter-select:focus {
@@ -233,11 +247,13 @@
   background-color: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  transition:
+    box-shadow 0.2s ease-in-out,
+    border-color 0.2s ease-in-out;
 }
 
 .table-container:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 16px 36px rgba(9, 97, 143, 0.2);
   border-color: rgba(9, 97, 143, 0.18);
 }
 
@@ -317,7 +333,9 @@
   color: var(--text);
   font-size: 13px;
   cursor: pointer;
-  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  transition:
+    border-color 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
 }
 
 .role-select:focus {
@@ -344,7 +362,9 @@
   height: 24px;
   border-radius: 999px;
   background-color: var(--border);
-  transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  transition:
+    background-color 0.2s ease-in-out,
+    opacity 0.2s ease-in-out;
 }
 
 .toggle-track.active {
@@ -398,7 +418,9 @@
   background-color: transparent;
   color: var(--primary);
   text-decoration: none;
-  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  transition:
+    background-color 0.2s ease-in-out,
+    border-color 0.2s ease-in-out;
 }
 
 .table-action:hover {
@@ -426,7 +448,9 @@
   padding: 9px 14px;
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  transition:
+    background-color 0.2s ease-in-out,
+    border-color 0.2s ease-in-out;
 }
 
 .page-btn:hover:not(:disabled) {
@@ -444,68 +468,197 @@
   font-size: 14px;
 }
 
-@media (max-width: 1024px) {
-  .controls-section {
-    flex-direction: column;
-    align-items: stretch;
+/* Tablet (768px and below) */
+@media (max-width: 768px) {
+  .users-container {
+    padding: 1rem;
   }
 
-  .filter-group {
+  .page-header {
+    padding: 1.25rem;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .controls-section {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .search-bar {
     width: 100%;
+    height: 44px;
   }
 
   .filter-select {
     width: 100%;
-  }
-
-  .users-table th,
-  .users-table td {
-    padding: 12px 10px;
-  }
-}
-
-@media (max-width: 768px) {
-  .users-container {
-    padding: 20px 12px;
-  }
-
-  .page-header h1 {
-    font-size: 26px;
+    font-size: 0.875rem;
   }
 
   .stats-row {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
-  .user-info {
-    flex-direction: column;
-    align-items: flex-start;
+  .stat-chip {
+    padding: 14px;
+  }
+
+  .stat-num {
+    font-size: 24px;
+  }
+
+  .users-table {
+    display: block;
+    font-size: 0.75rem;
+    min-width: 100%;
+  }
+
+  .users-table thead {
+    display: none;
+  }
+
+  .users-table tbody,
+  .users-table tr,
+  .users-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .users-table tr {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    background: var(--surface-dark);
+  }
+
+  .users-table td {
+    padding: 6px 0;
+    border: none;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .users-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+
+  .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+  }
+
+  .user-name {
+    max-width: 150px;
+  }
+
+  .role-select {
+    min-width: 110px;
+    padding: 5px 8px;
+    font-size: 0.75rem;
+  }
+
+  .status-toggle {
+    gap: 6px;
+  }
+
+  .toggle-track {
+    width: 40px;
+    height: 22px;
+  }
+
+  .table-action {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  .pagination {
+    gap: 6px;
+    padding: 12px 0;
+  }
+
+  .page-btn {
+    padding: 6px 10px;
+    font-size: 0.75rem;
   }
 }
 
-@media (max-width: 580px) {
-  .users-table {
-    min-width: 100%;
+/* Mobile (480px and below) */
+@media (max-width: 480px) {
+  .users-container {
+    padding: 0.75rem;
   }
 
-  .users-table th,
-  .users-table td {
-    padding: 10px 8px;
+  .page-header {
+    padding: 1rem;
   }
 
-  .search-bar,
-  .filter-select {
-    min-width: 100%;
+  .page-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .stats-row {
+    gap: 8px;
+  }
+
+  .stat-chip {
+    padding: 12px;
+  }
+
+  .stat-num {
+    font-size: 20px;
+  }
+
+  .users-table tr {
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+
+  .avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.625rem;
+  }
+
+  .role-select {
+    min-width: 90px;
+    padding: 4px 6px;
+    font-size: 0.7rem;
+  }
+
+  .table-action {
+    padding: 5px 8px;
+    font-size: 0.7rem;
+  }
+
+  .page-btn {
+    padding: 5px 8px;
+    font-size: 0.7rem;
+    min-width: 32px;
+    height: 32px;
   }
 }
 
 @media (prefers-color-scheme: dark) {
   .page-header {
-    background: linear-gradient(135deg, #0e2a46, #152f55);
+    background: var(--color-card-bg-dark);
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
   }
 
-  .users-container,
+  .users-container {
+    background-color: white;
+  }
+
   .table-container,
   .loading-state,
   .empty-state,

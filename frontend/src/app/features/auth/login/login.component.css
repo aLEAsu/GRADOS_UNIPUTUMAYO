@@ -492,7 +492,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(135deg, var(--color-azul-claro) 0%, var(--color-verde) 50%, var(--color-verde-suave) 100%);
+    background: var(--color-azul);
     color: #fff;
     padding: 2rem;
     text-align: center;

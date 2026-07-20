@@ -3,7 +3,6 @@
   max-width: 900px;
   margin: 0 auto;
   padding: 2rem;
-  background-color: var(--color-bg);
   min-height: 100vh;
 }
 
@@ -20,7 +19,7 @@
   transition: all 0.3s ease;
 }
 .back-link:hover {
-  color: var(--color-azul);
+  color: var(--color-azul-claro);
   transform: translateX(-4px);
 }
 
@@ -819,7 +818,8 @@
 /* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
   .process-new-container {
-    background-color: var(--color-bg-secondary);
+    background-color: var(--color-card-bg-dark);
+    border-radius: 14px;
     color: var(--color-text);
   }
 

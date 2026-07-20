@@ -631,7 +631,8 @@
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
   .reviews-container {
-    background-color: var(--color-bg-secondary);
+    background-color: var(--color-card-bg-dark);
+    border-radius: 14px;
   }
   .page-header h1 {
     color: var(--color-text);
