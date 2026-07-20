@@ -1,8 +1,6 @@
 .process-list-container {
   padding: 2rem;
-  background: linear-gradient(135deg, var(--color-azul) -20%, var(--color-verde) 190%);
-  box-shadow: 0 0 20px rgba(9, 96, 143, 0.9);
-  animation: glowPulse 3s ease-in-out infinite;
+  background: transparent; /* Use page background for coherence with dashboard */
   min-height: 100vh;
 }
 
@@ -21,7 +19,7 @@
 .page-title {
   font-size: 1.875rem;
   font-weight: 700;
-  color: white;
+  color: black;
   margin: 0;
 }
 
@@ -70,10 +68,11 @@
 
 /* Filters Section */
 .filters-section {
-  background-color: var(--color-bg);
+  background-color: var(--color-card-bg-dark);
+  color: var(--color-card-text-dark);
   padding: 1.5rem;
   border-radius: 14px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-card-border-dark);
   margin-bottom: 2rem;
   display: flex;
   flex-direction: column;
@@ -89,10 +88,11 @@
 .search-input {
   width: 100%;
   padding: 0.75rem 2.5rem 0.75rem 1rem;
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(255,255,255,0.06);
   border-radius: 10px;
   font-size: 0.875rem;
-  background-color: var(--color-bg);
+  background-color: rgba(255,255,255,0.03);
+  color: var(--color-card-text-dark);
   transition: all 0.3s ease;
 }
 
@@ -131,10 +131,10 @@
 }
 
 .filter-select {
-  border: none; /* elimina el borde del select */
-  outline: none; /* elimina el contorno azul al hacer foco */
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text);
+  border: none;
+  outline: none;
+  background-color: rgba(255,255,255,0.03);
+  color: var(--color-card-text-dark);
   border-radius: 10px;
   padding: 0.625rem 0.875rem;
   font-size: 0.875rem;
@@ -152,9 +152,10 @@
 
 /* Table Styles */
 .table-wrapper {
-  background-color: var(--color-bg);
+  background-color: var(--color-card-bg-dark);
+  color: var(--color-card-text-dark);
   border-radius: 20px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-card-border-dark);
   overflow: hidden;
 }
 
@@ -165,15 +166,15 @@
 }
 
 .table-header {
-  background-color: var(--color-bg-secondary);
-  border-bottom: 2px solid var(--color-border);
+  background-color: transparent;
+  border-bottom: 2px solid var(--color-card-border-dark);
 }
 
 .table-header th {
   padding: 1rem;
   text-align: left;
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: var(--color-card-text-dark);
   white-space: nowrap;
 }
 
@@ -219,7 +220,7 @@
 }
 
 .table-row:hover {
-  background-color: var(--color-bg-secondary);
+  background-color: rgba(255,255,255,0.02);
 }
 
 .row-highlighted {
@@ -228,7 +229,7 @@
 
 .table-row td {
   padding: 1rem;
-  color: var(--color-text);
+  color: var(--color-card-text-dark);
 }
 
 .title-text {
@@ -366,7 +367,7 @@
 
 .btn-pagination:hover:not(:disabled) {
   background-color: var(--color-bg-secondary);
-  border-color: #cbd5e1;
+  border-color: var(--color-border-light);
 }
 
 .btn-pagination:disabled {

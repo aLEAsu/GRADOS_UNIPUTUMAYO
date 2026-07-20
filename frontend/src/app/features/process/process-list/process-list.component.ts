@@ -82,6 +82,7 @@ export class ProcessListComponent implements OnInit {
 
   userRole = computed(() => this.authService.userRole());
   currentUser = computed(() => this.authService.currentUser());
+  currentFullUser = computed(() => this.authService.currentFullUser());
 
   constructor(
     private processService: DegreeProcessService,
@@ -209,11 +210,19 @@ export class ProcessListComponent implements OnInit {
 
   formatAdvisorName(advisor: any): string {
     if (!advisor) {
+      if (this.userRole() === UserRole.ADVISOR) {
+        const currentFullUser = this.currentFullUser();
+        const firstName = currentFullUser?.firstName?.trim() || this.currentUser()?.firstName?.trim() || '';
+        const lastName = currentFullUser?.lastName?.trim() || '';
+        const fullName = [firstName, lastName].filter(Boolean).join(' ');
+        return fullName || 'Asesor';
+      }
       return 'No asignado';
     }
+
     const firstName = advisor.firstName?.trim() || '';
     const lastName = advisor.lastName?.trim() || '';
-    
+
     if (firstName && lastName) {
       return `${firstName} ${lastName}`;
     } else if (firstName) {

@@ -1,7 +1,7 @@
 import {
   IsString,
   IsOptional,
-  IsPhoneNumber,
+  Matches,
   IsInt,
   Min,
   IsEnum,
@@ -22,7 +22,7 @@ export class UpdateProfileDto {
 
   @ApiPropertyOptional({ description: 'Teléfono de contacto', example: '+573001234567' })
   @IsOptional()
-  @IsPhoneNumber()
+  @Matches(/^\+?\d{7,15}$/, { message: 'phone must be a valid phone number' })
   phone?: string;
 
   @ApiPropertyOptional({ description: 'URL del avatar', example: 'https://example.com/avatar.jpg' })

@@ -116,8 +116,55 @@ export class LayoutComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // Load existing notifications and start polling
     this.notificationService.loadNotifications().subscribe({ error: () => {} });
     this.pollingSub = this.notificationService.startPolling(60000);
+
+    // Load full user profile and check completeness; if incomplete, create a notification (non-intrusive)
+    this.authService.getMyFullProfile().subscribe({
+      next: (user) => this.handleProfileCheckAndNotify(user),
+      error: () => {
+        // ignore errors (unauthenticated or backend unavailable)
+      }
+    });
+  }
+
+  private handleProfileCheckAndNotify(user: any): void {
+    if (!user) return;
+    const missing: string[] = [];
+
+    if (!user.phone) missing.push('Teléfono');
+    if (!user.firstName) missing.push('Nombre');
+    if (!user.lastName) missing.push('Apellidos');
+
+    const role = user.role;
+    if (role === 'STUDENT') {
+      if (!user.studentProfile?.studentCode) missing.push('Código estudiante');
+      if (!user.studentProfile?.program) missing.push('Programa');
+    }
+    if (role === 'ADVISOR') {
+      if (!user.advisorProfile?.department) missing.push('Departamento');
+      if (!user.advisorProfile?.specialization) missing.push('Especialización');
+    }
+
+    if (missing.length === 0) return; // nothing to do
+
+    // Avoid creating duplicate notifications: check existing unread notifications with same title
+    const existing = (this.notificationService.notifications() || []).find(n => !n.isRead && n.title === 'Completa tu perfil');
+    if (existing) return;
+
+    const message = `Faltan los siguientes datos en tu perfil: ${missing.join(', ')}.`;
+
+    // Create notification for current user (server-side persisted)
+    this.notificationService.createNotification({ type: 'GENERAL', title: 'Completa tu perfil', message, metadata: { missingFields: missing, target: '/profile' } })
+      .subscribe({
+        next: () => {
+          // reload notifications already triggered inside service
+        },
+        error: () => {
+          // if backend fails, we silently ignore to avoid harming UX
+        }
+      });
   }
 
   ngOnDestroy(): void {
@@ -162,8 +209,53 @@ export class LayoutComponent implements OnInit, OnDestroy {
     this.notificationService.markAsRead(id).subscribe();
   }
 
+  handleNotificationClick(notif: any): void {
+    // Mark as read first, then navigate to target if provided
+    this.notificationService.markAsRead(notif.id).subscribe({
+      next: () => {
+        const target = notif?.metadata?.target || (notif?.metadata?.processId ? `/process/${notif.metadata.processId}` : null);
+        if (target) {
+          this.router.navigate([target]);
+        }
+      },
+      error: () => {
+        // still attempt navigation even if marking failed
+        const target = notif?.metadata?.target || (notif?.metadata?.processId ? `/process/${notif.metadata.processId}` : null);
+        if (target) {
+          this.router.navigate([target]);
+        }
+      }
+    });
+  }
+
   markAllRead(): void {
     this.notificationService.markAllAsRead().subscribe();
+  }
+
+  deleteNotification(id: string): void {
+    this.notificationService.deleteNotification(id).subscribe({
+      next: () => {},
+      error: () => {},
+    });
+  }
+
+  showDeleteAllConfirm = signal(false);
+
+  deleteAllNotifications(): void {
+    // open custom confirm modal
+    this.showDeleteAllConfirm.set(true);
+  }
+
+  confirmDeleteAll(): void {
+    this.notificationService.deleteAllNotifications().subscribe({ next: () => {
+      this.showDeleteAllConfirm.set(false);
+    }, error: () => {
+      this.showDeleteAllConfirm.set(false);
+    } });
+  }
+
+  cancelDeleteAll(): void {
+    this.showDeleteAllConfirm.set(false);
   }
 
   logout(): void {

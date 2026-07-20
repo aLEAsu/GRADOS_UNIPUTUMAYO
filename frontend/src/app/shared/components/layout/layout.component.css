@@ -19,7 +19,7 @@
   z-index: 50;
   transition: width 0.3s ease;
   overflow: hidden;
-  border-right: 2px solid #5d8ef2;
+  border-right: 2px solid var(--color-logo-bg);
 }
 
 .sidebar.collapsed {
@@ -363,6 +363,11 @@
   color: var(--color-text);
   margin: 0;
 }
+.panel-actions {
+  display: flex;
+  gap: 14px; /* separate the action buttons a bit more */
+  align-items: center;
+}
 .text-btn {
   background: none;
   border: none;
@@ -370,9 +375,21 @@
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+/* Smaller, less intrusive hover box for the "mark all as read" action */
+.text-btn.mark-read {
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 0.72rem;
 }
 .text-btn:hover {
   color: var(--color-verde);
+  background: rgba(124,181,50,0.04);
+}
+.text-btn.danger {
+  color: var(--color-rojo);
 }
 .panel-body {
   overflow-y: auto;
@@ -524,6 +541,50 @@
   box-sizing: border-box;
 }
 
+/* Profile incompleteness banner */
+.profile-banner {
+  background: linear-gradient(90deg, rgba(255,245,230,0.95), rgba(255,255,255,0.95));
+  border: 1px solid rgba(231, 148, 34, 0.18);
+  padding: 12px 18px;
+  margin: 1rem auto 0;
+  max-width: 1340px;
+  border-radius: 10px;
+  box-shadow: 0 6px 14px rgba(10,20,30,0.04);
+}
+.profile-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.profile-banner p {
+  margin: 0;
+  color: #2b2b2b;
+  font-size: 0.95rem;
+}
+.missing-field {
+  font-weight: 700;
+  color: #b45309; /* amber-ish */
+  margin-left: 6px;
+}
+.profile-banner-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-primary {
+  background: var(--color-azul);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
 .page-content p {
   color: black;
   line-height: 1.6;
@@ -596,6 +657,42 @@
     width: 220px;
   }
 }
+
+/* Confirm modal for delete all */
+.confirm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 2000;
+  backdrop-filter: blur(2px);
+}
+
+.confirm-modal {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--color-bg);
+  padding: 18px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  z-index: 2001;
+  width: 420px;
+  max-width: calc(100% - 32px);
+  animation: popIn 0.12s ease;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translate(-50%, -46%) scale(0.98); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.confirm-modal h3 { margin: 0 0 8px; }
+.confirm-modal p { color: var(--color-text-secondary); margin-bottom: 12px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.modal-actions .btn { padding: 8px 12px; border-radius: 8px; }
+.modal-actions .btn.danger { background: var(--color-rojo); color: white; border: none; }
+
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
   .mobile-menu-btn {

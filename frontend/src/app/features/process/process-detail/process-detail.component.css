@@ -1,8 +1,12 @@
 .process-detail-container {
-  max-width: 1000px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 2rem;
-  background-color: var(--color-bg);
+  padding: 2.5rem;
+  background: transparent; /* mantener fondo global, solo los recuadros internos tendrán color */
+  color: inherit;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
   min-height: 100vh;
 }
 
@@ -116,12 +120,17 @@
   display: inline-block;
   color: var(--color-azul);
   text-decoration: none;
-  font-weight: 500;
-  transition: all 0.3s ease;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  transition: all 0.18s ease;
 }
 .back-link:hover {
-  color: var(--color-verde);
-  transform: translateX(-4px);
+  color: black;
+  transform: translateX(-6px);
+  background: rgba(9, 96, 143, 0.463);
+  text-decoration: none;
 }
 
 /* Loading State */
@@ -187,9 +196,10 @@
 
 /* Process Header */
 .process-header {
-  background-color: var(--color-bg);
+  background-color: var(--color-card-bg-dark);
+  color: var(--color-card-text-dark);
   border-radius: 14px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-card-border-dark);
   padding: 2rem;
   margin-bottom: 2rem;
 }
@@ -205,7 +215,7 @@
 .process-title {
   font-size: 1.875rem;
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--color-card-text-dark);
   margin: 0;
   flex: 1;
 }
@@ -221,8 +231,8 @@
 }
 
 .status-draft {
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text-secondary);
+  background-color: rgba(255,255,255,0.03);
+  color: var(--color-card-text-muted);
 }
 
 .status-active {
@@ -263,27 +273,28 @@
 .meta-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: var(--color-card-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .meta-value {
   font-size: 0.875rem;
-  color: var(--color-text);
+  color: var(--color-card-text-dark);
 }
 
 /* Description */
 .process-description {
-  background-color: var(--color-bg);
+  background-color: var(--color-card-bg-dark);
+  color: var(--color-card-text-dark);
   border-radius: 14px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-card-border-dark);
   padding: 1.5rem;
   margin-bottom: 2rem;
 }
 
 .description-text {
-  color: var(--color-text-secondary);
+  color: var(--color-card-text-dark);
   font-size: 0.875rem;
   line-height: 1.6;
   margin: 0;
@@ -293,9 +304,10 @@
 
 /* Progress Section */
 .progress-section {
-  background-color: var(--color-bg);
+  background-color: var(--color-card-bg-dark);
+  color: var(--color-card-text-dark);
   border-radius: 14px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-card-border-dark);
   padding: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -312,14 +324,14 @@
 .section-subtitle {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--color-card-text-dark);
   margin: 0;
 }
 
 .progress-percentage {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-azul);
+  color: var(--color-card-text-muted);
 }
 
 .progress-bar-container {
@@ -339,9 +351,10 @@
 
 /* Tabs */
 .tabs-container {
-  background-color: var(--color-bg);
+  background-color: var(--color-card-bg-dark);
+  color: var(--color-card-text-dark);
   border-radius: 14px;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-card-border-dark);
   overflow: hidden;
 }
 
@@ -361,7 +374,7 @@
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--color-card-text-muted);
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
@@ -372,8 +385,8 @@
 }
 
 .tab-button:hover {
-  color: var(--color-text);
-  background-color: var(--color-bg-secondary);
+  color: var(--color-card-text-dark);
+  background-color: rgba(255,255,255,0.02);
 }
 
 .tab-button.active {
@@ -389,6 +402,7 @@
   right: 0;
   height: 2px;
   background: linear-gradient(90deg, var(--color-azul-claro), var(--color-verde));
+  box-shadow: 0 2px 8px rgba(9,97,143,0.15);
 }
 
 .tab-icon {
@@ -420,10 +434,11 @@
 }
 
 .requirement-card {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-card-border-dark);
   border-radius: 10px;
   padding: 1rem;
-  background-color: var(--color-bg);
+  background-color: var(--color-card-bg-dark);
+  color: var(--color-card-text-dark);
   transition: all 0.3s ease;
 }
 
@@ -539,14 +554,14 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem;
-  background-color: var(--color-bg);
+  background-color: rgba(255,255,255,0.02);
   border-radius: 6px;
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--color-card-text-dark);
   margin-bottom: 0.25rem;
 }
 .version-item:hover {
-  background-color: var(--color-bg-secondary);
+  background-color: rgba(255,255,255,0.04);
 }
 
 .version-name {
@@ -563,10 +578,53 @@
 .upload-section {
   margin-top: 1rem;
   padding: 1rem;
-  background-color: var(--color-bg);
+  background-color: var(--color-card-bg-dark);
+  color: var(--color-card-text-dark);
   border-radius: 8px;
-  border: 1px dashed var(--color-border);
+  border: 1px dashed var(--color-card-border-dark);
 }
+
+/* Override local alert-warning inside this view to use white text and slightly larger font */
+.process-detail-container .alert-warning {
+  background-color: rgba(247,191,0,0.12);
+  border: 1px solid rgba(193,112,0,0.9);
+  color: #ffffff;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+.process-detail-container .alert-warning::before {
+  color: #ffffff;
+}
+
+/* Make required badges slightly larger and keep white text if used on colored badges */
+.process-detail-container .required-badge {
+  font-size: 0.92rem;
+  padding: 0.45rem 0.7rem;
+  color: #ffffff;
+  background-color: rgba(229,41,34,0.9);
+}
+
+/* Ensure yellow/info boxes use white text and slightly bigger font for readability */
+.process-detail-container .status-review,
+.process-detail-container .status-correction,
+.process-detail-container .alert-warning,
+.process-detail-container .approval-revision,
+.process-detail-container .approval-rejected {
+  color: #ffffff !important;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Increase general text sizes inside cards slightly */
+.process-detail-container .meta-label,
+.process-detail-container .meta-value,
+.process-detail-container .description-text,
+.process-detail-container .document-name,
+.process-detail-container .version-name,
+.process-detail-container .obs-content {
+  font-size: 0.95rem;
+}
+
 
 .upload-instruction {
   font-size: 0.8rem;
@@ -588,11 +646,11 @@
 .upload-label {
   display: block;
   padding: 1rem;
-  border: 2px dashed var(--color-border-light);
+  border: 2px dashed var(--color-card-border-dark);
   border-radius: 8px;
   text-align: center;
   cursor: pointer;
-  background-color: var(--color-bg-secondary);
+  background-color: transparent;
   font-size: 0.875rem;
   color: var(--color-azul);
   font-weight: 600;
@@ -600,7 +658,7 @@
 }
 .upload-label:hover {
   border-color: var(--color-azul);
-  background-color: rgba(9, 97, 143, 0.05);
+  background-color: rgba(9, 97, 143, 0.04);
 }
 
 .upload-error {
@@ -618,15 +676,16 @@
 }
 
 .document-card {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-card-border-dark);
   border-radius: 10px;
   padding: 1rem;
-  background-color: var(--color-bg);
+  background-color: var(--color-card-bg-dark);
+  color: var(--color-card-text-dark);
   transition: all 0.3s ease;
 }
 .document-card:hover {
-  border-color: var(--color-border-light);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--color-card-border-dark);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
 }
 
 .document-header {
@@ -647,13 +706,13 @@
 
 .document-item {
   padding: 0.75rem;
-  background-color: var(--color-bg-secondary);
+  background-color: rgba(255,255,255,0.02);
   border-radius: 8px;
   margin-bottom: 0.5rem;
   transition: all 0.3s ease;
 }
 .document-item:hover {
-  background-color: rgba(9, 97, 143, 0.05);
+  background-color: rgba(255,255,255,0.04);
 }
 
 .document-details {
@@ -683,39 +742,41 @@
 }
 
 .observations-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-card-text-muted);
   margin: 0 0 0.5rem 0;
 }
 
 .observation-item {
-  padding: 0.5rem;
-  background-color: rgba(247, 191, 0, 0.1);
-  border-left: 3px solid var(--color-amarillo);
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
+  padding: 0.75rem;
+  background-color: rgba(247, 191, 0, 0.18); /* amarillo más suave sobre fondo oscuro */
+  border-left: 3px solid rgba(193,112,0,0.9);
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  color: #ffffff; /* texto en blanco según lo solicitado */
 }
 .observation-item:hover {
-  background-color: rgba(247, 191, 0, 0.2);
+  background-color: rgba(247, 191, 0, 0.24);
 }
 
 .obs-author {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-amarillo);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 .obs-date {
-  font-size: 0.7rem;
-  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.85);
   margin-left: 0.5rem;
 }
 
 .obs-content {
-  font-size: 0.8rem;
-  color: var(--color-amarillo);
+  font-size: 0.95rem; /* aumentar tamaño de texto en recuadros amarillos */
+  color: #ffffff; /* blanco para mejorar legibilidad sobre amarillo */
   margin: 0.25rem 0 0 0;
+  line-height: 1.4;
 }
 
 /* Approvals */
@@ -740,14 +801,15 @@
 
 .approval-item {
   padding: 1rem;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-card-border-dark);
   border-radius: 8px;
-  background-color: var(--color-bg);
+  background-color: var(--color-card-bg-dark);
+  color: var(--color-card-text-dark);
   transition: all 0.3s ease;
 }
 .approval-item:hover {
-  border-color: var(--color-border-light);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--color-card-border-dark);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
 }
 
 .approval-header {
@@ -1162,9 +1224,15 @@
 
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
+  /* Keep the outer container matching the global page-content so the inner cards stand out */
   .process-detail-container {
-    background-color: var(--color-bg-secondary);
+    background-color: white;
+    box-shadow: none;
+    border: none;
+    border-radius: 0;
   }
+
+  /* Inner panels should remain the card/dark variants to match dashboard */
   .process-header,
   .process-description,
   .progress-section,
@@ -1174,11 +1242,13 @@
   .approval-item,
   .timeline-content,
   .modal-content {
-    background-color: var(--color-bg);
-    border-color: var(--color-border);
+    background-color: var(--color-card-bg-dark);
+    border-color: var(--color-card-border-dark);
+    color: var(--color-card-text-dark);
   }
+
   .tab-button {
-    color: var(--color-text-secondary);
+    color: var(--color-card-text-muted);
   }
   .tab-button.active {
     color: var(--color-azul);

@@ -72,6 +72,8 @@ export class AuthService {
           role: UserRole.STUDENT,
           emailVerified: false,
           isActive: true,
+          dataPolicyAccepted: dto.acceptPolicy,
+          dataPolicyAcceptedAt: dto.acceptPolicy ? new Date() : null,
         },
       });
 
@@ -92,6 +94,32 @@ export class AuthService {
     });
 
     this.logger.log(`New user registered: ${user.email}`);
+
+    // Create a gentle notification inviting the user to complete optional fields (e.g., phone)
+    try {
+      const missing: string[] = [];
+      if (!user.phone) missing.push('Teléfono');
+      if (!user.firstName) missing.push('Nombre');
+      if (!user.lastName) missing.push('Apellidos');
+
+      // Verify if a student profile exists for this user
+      const student = await this.prisma.studentProfile.findUnique({ where: { userId: user.id } });
+      if (!student) missing.push('Perfil de estudiante');
+
+      if (missing.length > 0) {
+        await this.prisma.notification.create({
+          data: {
+            userId: user.id,
+            type: 'GENERAL',
+            title: 'Completa tu perfil',
+            message: `Faltan los siguientes datos en tu perfil: ${missing.join(', ')}.`,
+            metadata: { missingFields: missing, target: '/profile' },
+          },
+        });
+      }
+    } catch (err) {
+      this.logger.warn(`Failed to create onboarding notification for new user: ${err?.message ?? String(err)}`);
+    }
 
     const { passwordHash, ...userWithoutPassword } = user;
     return userWithoutPassword;
@@ -262,6 +290,32 @@ export class AuthService {
 
       return createdUser;
     });
+
+    // Create onboarding notification for Google-created users if any basic fields missing
+    try {
+      const missing: string[] = [];
+      if (!user.phone) missing.push('Teléfono');
+      if (!user.firstName) missing.push('Nombre');
+      if (!user.lastName) missing.push('Apellidos');
+
+      // Verify student profile exists (should have been created in the transaction above)
+      const student = await this.prisma.studentProfile.findUnique({ where: { userId: user.id } });
+      if (!student) missing.push('Perfil de estudiante');
+
+      if (missing.length > 0) {
+        await this.prisma.notification.create({
+          data: {
+            userId: user.id,
+            type: 'GENERAL',
+            title: 'Completa tu perfil',
+            message: `Faltan los siguientes datos en tu perfil: ${missing.join(', ')}.`,
+            metadata: { missingFields: missing, target: '/profile' },
+          },
+        });
+      }
+    } catch (err) {
+      this.logger.warn(`Failed to create onboarding notification for google user: ${err?.message ?? String(err)}`);
+    }
 
     return user;
   }

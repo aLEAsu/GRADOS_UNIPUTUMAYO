@@ -344,7 +344,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #2b7db3 0%, #7cb532 50%, #b8d973 100%);
+  background: linear-gradient(135deg, var(--color-azul-claro) 0%, var(--color-verde) 50%, var(--color-verde-suave) 100%);
   color: #fff;
   padding: 2rem;
   text-align: center;

@@ -7,6 +7,9 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Post,
+  Body,
+  Delete,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,7 +18,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
-import { NotificationsService } from './notifications.service';
+import { NotificationsService, CreateNotificationDto } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../shared/guards/roles.guard';
 import {
@@ -52,6 +55,23 @@ export class NotificationsController {
       page: pagination.page || 1,
       limit: pagination.limit || 20,
     });
+  }
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a notification for the current user' })
+  async createMyNotification(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: CreateNotificationDto,
+  ) {
+    // Ensure the userId in DTO is ignored and we use authenticated user
+    return this.notificationsService.createNotification(
+      user.sub,
+      body.type,
+      body.title,
+      body.message,
+      body.metadata,
+    );
   }
 
   @Get('unread-count')
@@ -109,5 +129,23 @@ export class NotificationsController {
       message: 'All notifications marked as read',
       updatedCount: result.count,
     };
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a specific notification' })
+  @ApiResponse({ status: 200, description: 'Notification deleted' })
+  async deleteNotification(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
+    await this.notificationsService.deleteNotification(id, user.sub);
+    return { message: 'Notification deleted' };
+  }
+
+  @Delete()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete all notifications for current user' })
+  @ApiResponse({ status: 200, description: 'All notifications deleted' })
+  async deleteAllNotifications(@CurrentUser() user: JwtPayload) {
+    const result = await this.notificationsService.deleteAllNotifications(user.sub);
+    return { message: 'Deleted notifications', deletedCount: result.count };
   }
 }

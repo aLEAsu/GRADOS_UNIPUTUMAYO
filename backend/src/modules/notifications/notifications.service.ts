@@ -162,6 +162,33 @@ export class NotificationsService {
     });
   }
 
+  async markNotificationsByTitle(userId: string, title: string) {
+    const result = await this.prisma.notification.updateMany({
+      where: {
+        userId,
+        title,
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+    });
+    return result;
+  }
+
+  async deleteNotification(notificationId: string, userId: string) {
+    const notif = await this.prisma.notification.findUnique({ where: { id: notificationId } });
+    if (!notif) throw new NotFoundException('Notification not found');
+    if (notif.userId !== userId) throw new BadRequestException('Cannot delete another user notification');
+    return this.prisma.notification.delete({ where: { id: notificationId } });
+  }
+
+  async deleteAllNotifications(userId: string) {
+    const result = await this.prisma.notification.deleteMany({ where: { userId } });
+    return result;
+  }
+
   async notifyDocumentUploaded(
     processId: string,
     documentName: string,

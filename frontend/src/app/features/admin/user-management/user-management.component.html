@@ -1,7 +1,6 @@
 <div class="users-container">
   <div class="page-header">
     <h1>Gestión de Usuarios</h1>
-    <p class="subtitle">Administra los usuarios del sistema y sus roles</p>
   </div>
 
   @if (error()) {
@@ -26,7 +25,7 @@
         }
       </select>
 
-      <select [(ngModel)]="filterStatus" class="filter-select">
+      <select [(ngModel)]="filterStatus" (change)="onFilterChange()" class="filter-select">
         <option value="all">Todos los Estados</option>
         <option value="active">Activos</option>
         <option value="inactive">Inactivos</option>

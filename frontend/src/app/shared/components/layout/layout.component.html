@@ -81,10 +81,25 @@
             <div class="dropdown-panel notification-panel" (click)="$event.stopPropagation()">
               <div class="panel-header">
                 <h4>Notificaciones</h4>
-                @if (unreadCount() > 0) {
-                  <button class="text-btn" (click)="markAllRead()">Marcar todas como leídas</button>
-                }
+                <div class="panel-actions">
+                  @if (unreadCount() > 0) {
+                    <button class="text-btn mark-read" (click)="markAllRead()">Marcar todas como leídas</button>
+                  }
+                  <button class="text-btn danger" (click)="deleteAllNotifications()">Eliminar todas</button>
+                </div>
               </div>
+
+              @if (showDeleteAllConfirm()) {
+                <div class="confirm-modal-backdrop" (click)="cancelDeleteAll()"></div>
+                <div class="confirm-modal">
+                  <h3>Eliminar todas las notificaciones</h3>
+                  <p>¿Estás seguro? Esta acción eliminará todas tus notificaciones y no se puede deshacer.</p>
+                  <div class="modal-actions">
+                    <button class="btn" (click)="cancelDeleteAll()">Cancelar</button>
+                    <button class="btn danger" (click)="confirmDeleteAll()">Eliminar</button>
+                  </div>
+                </div>
+              }
               <div class="panel-body">
                 @if (notifications().length === 0) {
                   <div class="empty-state-small">
@@ -93,17 +108,22 @@
                   </div>
                 } @else {
                   @for (notif of notifications().slice(0, 8); track notif.id) {
-                    <div class="notification-item" [class.unread]="!notif.isRead" (click)="markNotificationRead(notif.id)">
-                      <div class="notif-icon">
+                                      <div class="notification-item" [class.unread]="!notif.isRead">
+                                        <div class="notif-icon" (click)="handleNotificationClick(notif)">
                         <i class="pi pi-info-circle"></i>
                       </div>
-                      <div class="notif-content">
+                                        <div class="notif-content" (click)="handleNotificationClick(notif)">
                         <p class="notif-title">{{ notif.title }}</p>
                         <p class="notif-message">{{ notif.message }}</p>
                         <span class="notif-time">{{ notif.createdAt | date:'short' }}</span>
                       </div>
-                    </div>
-                  }
+                                        <div class="notif-actions">
+                                          <button class="icon-btn small" title="Eliminar" (click)="$event.stopPropagation(); deleteNotification(notif.id)">
+                                            <i class="pi pi-trash"></i>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    }
                 }
               </div>
             </div>
@@ -156,6 +176,7 @@
     </header>
 
     <!-- Page content -->
+
     <main class="page-content">
       <router-outlet></router-outlet>
     </main>

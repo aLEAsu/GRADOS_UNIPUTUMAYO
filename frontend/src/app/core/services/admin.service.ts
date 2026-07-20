@@ -36,7 +36,8 @@ export class AdminService {
   }
 
   getUserById(id: string): Observable<User> {
-    return this.http.get<User>(`${this.apiUrl}/users/${id}`);
+    // The users detail endpoint lives under /users/:id (not /admin/users/:id)
+    return this.http.get<User>(`${environment.apiUrl}/users/${id}`);
   }
 
   updateUser(id: string, data: Partial<User>): Observable<User> {

@@ -24,6 +24,7 @@ export class RegisterComponent {
   isLoading = signal(false);
   errorMessage = signal('');
   successMessage = signal('');
+  acceptPolicy = false;
 
   constructor(
     private authService: AuthService,
@@ -36,6 +37,11 @@ export class RegisterComponent {
 
     if (!this.firstName || !this.lastName || !this.email || !this.password || !this.studentCode || !this.program) {
       this.errorMessage.set('Por favor completa todos los campos obligatorios');
+      return;
+    }
+
+    if (!this.acceptPolicy) {
+      this.errorMessage.set('Debe aceptar la política de uso de datos para continuar');
       return;
     }
 
@@ -59,6 +65,7 @@ export class RegisterComponent {
       phone: this.phone || undefined,
       studentCode: this.studentCode,
       program: this.program,
+      acceptPolicy: this.acceptPolicy,
     }).subscribe({
       next: () => {
         this.successMessage.set('Cuenta creada exitosamente. Ahora puedes iniciar sesión.');
