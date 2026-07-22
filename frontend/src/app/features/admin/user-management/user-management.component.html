@@ -15,6 +15,8 @@
     <div class="search-bar">
       <i class="pi pi-search search-icon"></i>
       <input type="text" placeholder="Buscar por nombre o correo..." [(ngModel)]="searchTerm" (keyup.enter)="onSearch()" class="search-input" />
+      <button type="button" class="search-button" (click)="onSearch()">Buscar</button>
+      <button type="button" class="refresh-button" (click)="refreshSearch()">Refrescar</button>
     </div>
 
     <div class="filter-group">

@@ -88,6 +88,16 @@ export class UserManagementComponent implements OnInit {
     this.loadUsers();
   }
 
+  /* Refresca la búsqueda y restablece la página actual a 1 */
+  refreshSearch(): void {
+    if (!this.searchTerm) {
+      return;
+    }
+    this.searchTerm = '';
+    this.currentPage = 1;
+    this.loadUsers();
+  }
+
   onFilterChange(): void {
     this.currentPage = 1;
     this.loadUsers();

@@ -27,12 +27,14 @@
 
   <div class="controls-section">
     <div class="search-bar">
-      <i class="pi pi-search search-icon"></i>
       <input type="text" placeholder="Buscar modalidades..." [(ngModel)]="searchTerm" class="search-input" />
+      <button type="button" class="search-button" (click)="onSearch()">Buscar</button>
+      <button type="button" class="refresh-button" (click)="refreshSearch()">Refrescar</button>
     </div>
     <div class="results-count">{{ filteredModalities.length }} modalidades</div>
   </div>
 
+  <!-- Se muestra un estado de carga, vacío o la lista de modalidades según corresponda -->
   @if (loading()) {
     <div class="loading-state">
       <div class="spinner"></div>

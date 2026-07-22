@@ -67,13 +67,39 @@ export class ModalityManagementComponent implements OnInit {
     });
   }
 
+/* Permite normalizar el valor de búsqueda eliminando acentos y convirtiendo a minúsculas. */
+  private normalizeSearchValue(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '');
+  }
+
+  /* Normaliza el texto de un campo específico para la búsqueda. */
+  private normalizeText(text: string | undefined | null): string {
+    return this.normalizeSearchValue(text || '');
+  }
+
+  /* Devuelve las modalidades filtradas según el término de búsqueda. */
   get filteredModalities(): DegreeModality[] {
     if (!this.searchTerm) return this.modalities();
-    const term = this.searchTerm.toLowerCase();
+    const term = this.normalizeSearchValue(this.searchTerm);
     return this.modalities().filter(m =>
-      m.name.toLowerCase().includes(term) ||
-      m.description.toLowerCase().includes(term)
+      this.normalizeText(m.name).includes(term) ||
+      this.normalizeText(m.description).includes(term)
     );
+  }
+
+  onSearch(): void {
+    // El filtro se aplica automáticamente al acceder a filteredModalities, pero podemos normalizar el término de búsqueda aquí si es necesario.
+    this.searchTerm = this.normalizeSearchValue(this.searchTerm);
+  }
+
+  refreshSearch(): void {
+    if (this.searchTerm) {
+      this.searchTerm = '';
+    }
   }
 
   toggleExpand(id: string): void {
